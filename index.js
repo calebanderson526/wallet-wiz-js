@@ -1,12 +1,22 @@
-const { test_token } = require("./WalletWiz")
-const token_address = '0xaa54e84A3e6e5A80288d2C2f8e36eA5cA3A3Ca30'
+// Import the test_token function from WalletWiz.js
+const { test_token } = require('./WalletWiz');
 
-async function run() {
-    const start = new Date();
-    const result = await test_token(token_address);
-    console.log(result)
-    console.log(`${new Date() - start} ms runtime`)
-}
+exports.handler = async (event) => {
+  // Parse the address from the event body
+  const body = JSON.parse(event.body);
 
-run()
+  // Call the test_token function with the parsed address
+  const result = await test_token(body.address);
 
+  // Prepare the response with appropriate status code and headers
+  const response = {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    },
+    body: JSON.stringify({ result })
+  };
+
+  return response;
+};
