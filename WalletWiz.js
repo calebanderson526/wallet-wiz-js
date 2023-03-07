@@ -46,6 +46,7 @@ const erc20_balance_checks = [
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 exports.test_token = async (token_address) => {
+  console.log(token_address)
   holders = await get_holders(token_address)
   var contract_named_holders = await get_contract_names(holders)
   var balances_holders = await get_holder_balances(holders)
