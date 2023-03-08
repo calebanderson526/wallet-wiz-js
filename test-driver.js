@@ -1,6 +1,6 @@
 const { test_token } = require("./WalletWiz")
 const { handler } = require("./index")
-const token_address = '0xaa54e84A3e6e5A80288d2C2f8e36eA5cA3A3Ca30'
+const token_address = '0xaa54e84a3e6e5a80288d2c2f8e36ea5ca3a3ca30'
 
 async function run() {
     const start = new Date();

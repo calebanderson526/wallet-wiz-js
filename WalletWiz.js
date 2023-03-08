@@ -46,7 +46,6 @@ const erc20_balance_checks = [
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 exports.test_token = async (token_address) => {
-  console.log(token_address)
   holders = await get_holders(token_address)
   var contract_named_holders = await get_contract_names(holders)
   var balances_holders = await get_holder_balances(holders)
@@ -324,7 +323,10 @@ const get_holder_rug_vs_ape = async (holders) => {
       await sleep(3000);
       for (let p of res['pairs']) {
         for (let h of pair_to_holders[p['pairAddress'].toLowerCase()]) {
-          if (p['liquidity']['usd'] < 1000 || p['txns']['h6']['buys'] <= 0) {
+          if (!p.liquidity) {
+            holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
+            continue
+          } else if (p['liquidity']['usd'] < 1000 || p['txns']['h6']['buys'] <= 0) {
             holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
           }
           holder_to_ape_count[h] = (holder_to_ape_count[h] || 0) + 1;
