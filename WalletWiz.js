@@ -46,7 +46,7 @@ const erc20_balance_checks = [
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-exports.test_token = async (token_address) => {
+const test_token = async (token_address) => {
   var holders = await get_holders(token_address)
   if (!holders) {
     console.log('!holders')
@@ -66,6 +66,7 @@ exports.test_token = async (token_address) => {
 
   return holders
 }
+exports.test_token = test_token
 
 const merge_holders = (holders1, holders2) => {
   var merged = [];
@@ -77,6 +78,7 @@ const merge_holders = (holders1, holders2) => {
   }
   return merged
 }
+exports.merge_holders = merge_holders
 
 const get_holders = async (token_address) => {
   var retries = 0
@@ -84,7 +86,8 @@ const get_holders = async (token_address) => {
     const query = {
       sql: `
       select distinct
-        top 50 t.address,
+        top 50 
+        t.address,
         l.address_name,
         holding
       from
@@ -161,6 +164,7 @@ const get_holders = async (token_address) => {
     return get_holders(token_address)
   }
 }
+exports.get_holders = get_holders
 
 const get_contract_names = async (holders) => {
   var retries = 0;
@@ -187,6 +191,7 @@ const get_contract_names = async (holders) => {
     return await get_contract_names(holders)
   }
 }
+exports.get_contract_names = get_contract_names
 
 const update_is_contract_names = async (byte_codes, holders) => {
   var retries = 0
@@ -268,6 +273,7 @@ const get_holder_balances = async (holders) => {
     return await get_holder_balances(holders)
   }
 }
+exports.get_holder_balances = get_holder_balances
 
 const get_holder_rug_vs_ape = async (holders) => {
   var retries = 0
@@ -368,6 +374,7 @@ const get_holder_rug_vs_ape = async (holders) => {
     return await get_holder_rug_vs_ape(holders)
   }
 }
+exports.get_holder_rug_vs_ape = get_holder_rug_vs_ape
 
 const get_wallet_time_stats = async (holders) => {
   let retries = 0;
@@ -421,3 +428,5 @@ const get_wallet_time_stats = async (holders) => {
     return get_wallet_time_stats(holders);
   }
 }
+
+exports.get_wallet_time_stats = get_wallet_time_stats
