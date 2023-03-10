@@ -3,6 +3,7 @@ const Web3 = require('web3');
 const { Flipside, Query, QueryResultSet } = require("@flipsidecrypto/sdk");
 const erc20_abi = require("./erc20_abi.json");
 const axios = require('axios');
+const { calculate_scores } = require('./HealthScore')
 
 
 const flipside = new Flipside(
@@ -46,7 +47,13 @@ const erc20_balance_checks = [
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 exports.test_token = async (token_address) => {
-  holders = await get_holders(token_address)
+  var holders = await get_holders(token_address)
+  if (!holders) {
+    console.log('!holders')
+    return {error: 'no holders detected'}
+  } else if (holders.length == 0) {
+    return {error: 'no holders detected'}
+  }
   var contract_named_holders = await get_contract_names(holders)
   var balances_holders = await get_holder_balances(holders)
   var rug_vs_ape_holders = await get_holder_rug_vs_ape(holders)
@@ -55,6 +62,7 @@ exports.test_token = async (token_address) => {
   holders = merge_holders(holders, balances_holders)
   holders = merge_holders(holders, rug_vs_ape_holders)
   holders = merge_holders(holders, time_stats_holders)
+  holders = calculate_scores(holders)
 
   return holders
 }
@@ -218,11 +226,11 @@ const get_holder_balances = async (holders) => {
       var erc20_bals = []
 
       for (let j = 0; j < erc20_balance_checks.length; j++) {
+        var cur_erc20_bal = await erc20_balance_checks[j].contract.methods.balanceOf(holders[i].address).call()
         erc20_bals.push({
           symbol: erc20_balance_checks[j]['symbol'],
           contractAddress: erc20_balance_checks[j]['address'],
-          tokenBalance: await erc20_balance_checks[j]
-            .contract.methods.balanceOf(holders[i].address)
+          tokenBalance: cur_erc20_bal
         })
         await sleep(alchemy_time)
       }
@@ -240,11 +248,11 @@ const get_holder_balances = async (holders) => {
       for (let j = 0; j < erc20_balances[holder.address].length; j++) {
         var erc20_bal = erc20_balances[holder.address][j]
         if (erc20_bal.symbol == 'WETH') {
-          var weth_bal = erc20_bal.tokenBalance / Math.pow(10, 18)
+          var weth_bal = await erc20_bal.tokenBalance / Math.pow(10, 18)
           usd_bal += weth_bal * eth_price.data.result.ethusd
           continue
         }
-        var stable_bal = erc20_bal.tokenBalance / Math.pow(10, 18)
+        var stable_bal = await erc20_bal.tokenBalance / Math.pow(10, 18)
         usd_bal += stable_bal
       }
       holders[i].wallet_value = usd_bal
@@ -273,16 +281,9 @@ const get_holder_rug_vs_ape = async (holders) => {
     var addr_with_quotes = addresses_to_check.map(addr => `'${addr}'`)
     var addr_str = addr_with_quotes.join(',')
     var sql = `
-    select
-      t1.contract_address,
-      t1.origin_from_address
-    from
-      (
         Select
           e.contract_address,
-          e.origin_from_address,
-          sum(e.amount_in_usd) as usd_in,
-          sum(e.amount_out_usd) as usd_out
+          e.origin_from_address
         from
           arbitrum.sushi.ez_swaps e
         WHERE
@@ -290,7 +291,6 @@ const get_holder_rug_vs_ape = async (holders) => {
         group BY
           e.contract_address,
           e.origin_from_address
-      ) t1
     `
 
     const query = {
