@@ -10,7 +10,7 @@ exports.handler = async (event) => {
 
   if (result.error) {
     // Prepare the response with appropriate status code and headers
-    const response = {
+    var response = {
       statusCode: 400,
       headers: {
         'Content-Type': 'application/json',
@@ -20,7 +20,7 @@ exports.handler = async (event) => {
     };
   } else {
     // Prepare the response with appropriate status code and headers
-    const response = {
+    var response = {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
