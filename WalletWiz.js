@@ -50,9 +50,9 @@ const test_token = async (token_address) => {
   var holders = await get_holders(token_address)
   if (!holders) {
     console.log('!holders')
-    return {error: 'no holders detected'}
+    return { error: 'no holders detected' }
   } else if (holders.length == 0) {
-    return {error: 'no holders detected'}
+    return { error: 'no holders detected' }
   }
   var contract_named_holders = await get_contract_names(holders)
   var balances_holders = await get_holder_balances(holders)
@@ -80,13 +80,37 @@ const merge_holders = (holders1, holders2) => {
 }
 exports.merge_holders = merge_holders
 
-const get_holders = async (token_address) => {
+function unixTimeMillisToString(timestamp_ms) {
+  // Convert the Unix timestamp from milliseconds to seconds
+  var threeDaysInMs = 432000 / 2
+  var timestamp_sec = timestamp_ms / 1000
+  timestamp_sec -= threeDaysInMs
+
+  // Use the Date constructor to convert the timestamp to a Date object
+  const date = new Date(timestamp_sec * 1000);
+  console.log(date)
+
+  // Use the Date object methods to construct the date string in the desired format
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+
+  const dateString = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+
+  return dateString;
+}
+
+
+const get_holders = async (token_address, start_date) => {
   var retries = 0
   try {
     const query = {
       sql: `
-      select distinct
-        top 50 
+      select top 50
         t.address,
         l.address_name,
         holding
@@ -115,6 +139,7 @@ const get_holders = async (token_address) => {
               from
                 arbitrum.core.fact_token_transfers a
               where
+                a.block_timestamp > '${unixTimeMillisToString(start_date)}' and 
                 a.contract_address = LOWER('${token_address}')
               group by
                 2
@@ -137,6 +162,7 @@ const get_holders = async (token_address) => {
               from
                 arbitrum.core.fact_token_transfers a
               where
+                a.block_timestamp > '${unixTimeMillisToString(start_date)}' and 
                 a.contract_address = LOWER('${token_address}')
               group by
                 2
@@ -161,7 +187,7 @@ const get_holders = async (token_address) => {
     }
     await sleep(5000)
     retries += 1
-    return get_holders(token_address)
+    return await get_holders(token_address)
   }
 }
 exports.get_holders = get_holders

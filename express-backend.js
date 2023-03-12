@@ -20,46 +20,50 @@ app.get('/', async (req, res) => {
 })
 // Define routes
 app.post('/api/v1/get-holders', async (req, res) => {
-    const { address } = req.body;
-    console.log(req)
-    const holders = await get_holders(address);
+    var start = new Date()
+    const { address, start_date } = req.body;
+    console.log('get holders')
+    const holders = await get_holders(address, start_date);
     if (holders.length == 0) {
+        console.log(`response time: ${new Date() - start}`)
         res.status(400).json({ message: 'invalid token address or no holders detected' })
     } else {
+        console.log(`response time: ${new Date() - start}`)
         res.json(holders);
     }
 });
 
 app.post('/api/v1/get-contract-names', async (req, res) => {
     const { holders } = req.body;
-    console.log(req)
+    console.log('get contract names')
     const mergedContractNames = merge_holders(holders, await get_contract_names(holders));
     res.json(mergedContractNames);
 });
 
 app.post('/api/v1/get-holder-balances', async (req, res) => {
     const { holders } = req.body;
+    console.log('get holder balances')
     const mergedHolderBalances = merge_holders(holders, await get_holder_balances(holders));
     res.json(mergedHolderBalances);
 });
 
 app.post('/api/v1/get-holder-rug-vs-ape', async (req, res) => {
     const { holders } = req.body;
-    console.log(req)
+    console.log('get holder rug vs ape')
     const mergedHolderRugVsApe = merge_holders(holders, await get_holder_rug_vs_ape(holders));
     res.json(mergedHolderRugVsApe);
 });
 
 app.post('/api/v1/get-wallet-time-stats', async (req, res) => {
     const { holders } = req.body;
-    console.log(req)
+    console.log('get time stats')
     const mergedWalletTimeStats = merge_holders(holders, await get_wallet_time_stats(holders));
     res.json(mergedWalletTimeStats);
 });
 
 app.post('/api/v1/calculate-scores', async (req, res) => {
     const { holders } = req.body;
-    console.log(req)
+    console.log('calculate scores')
     const mergedWalletScores = merge_holders(holders, calculate_scores(holders));
     res.json(mergedWalletScores);
 });
