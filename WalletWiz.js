@@ -104,8 +104,7 @@ function unixTimeMillisToString(timestamp_ms) {
 }
 
 
-const get_holders = async (token_address, start_date) => {
-  var retries = 0
+const get_holders = async (token_address, start_date, retries) => {
   try {
     const query = {
       sql: `
@@ -184,15 +183,14 @@ const get_holders = async (token_address, start_date) => {
     if (retries > 5) {
       return {err: e}
     }
-    await sleep((Math.random() * 6) + (2 * retries))
+    await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
     retries += 1
-    return await get_holders(token_address)
+    return await get_holders(token_address, retries)
   }
 }
 exports.get_holders = get_holders
 
-const get_contract_names = async (holders) => {
-  var retries = 0;
+const get_contract_names = async (holders, retries) => {
   var byte_codes = []
 
   try {
@@ -203,7 +201,7 @@ const get_contract_names = async (holders) => {
       await sleep(alchemy_time)
     }
 
-    return await update_is_contract_names(byte_codes, holders)
+    return await update_is_contract_names(byte_codes, holders, 0)
 
   } catch (e) {
 
@@ -213,13 +211,12 @@ const get_contract_names = async (holders) => {
     }
     retries += 1
     await sleep((Math.random() * 6) + (2 * retries))
-    return await get_contract_names(holders)
+    return await get_contract_names(holders, retries)
   }
 }
 exports.get_contract_names = get_contract_names
 
-const update_is_contract_names = async (byte_codes, holders) => {
-  var retries = 0
+const update_is_contract_names = async (byte_codes, holders, retries) => {
   try {
     var source_codes = []
     // do the api calls
@@ -250,13 +247,12 @@ const update_is_contract_names = async (byte_codes, holders) => {
     }
     await sleep((Math.random() * 6) + (2 * retries))
     retries += 1
-    return await update_is_contract_names(byte_codes, holders)
+    return await update_is_contract_names(byte_codes, holders, retries)
   }
   return holders
 }
 
-const get_holder_balances = async (holders) => {
-  var retries = 0
+const get_holder_balances = async (holders, retries) => {
   var eth_balances = {}
   var erc20_balances = {}
   try {
@@ -303,9 +299,11 @@ const get_holder_balances = async (holders) => {
     if (retries > 5) {
       return {err: e}
     }
-    await sleep((Math.random() * 6) + (2 * retries))
+    var time_to_sleep = ((Math.random() * 10) + (2 * retries)) * 1000
+    console.log(time_to_sleep)
+    await sleep(time_to_sleep)
     retries += 1
-    return await get_holder_balances(holders)
+    return await get_holder_balances(holders, retries)
   }
 }
 exports.get_holder_balances = get_holder_balances
@@ -379,8 +377,7 @@ const groupPairsBySymbol = (pairs) => {
 }
 
 
-const get_holder_rug_vs_ape = async (holders) => {
-  var retries = 0
+const get_holder_rug_vs_ape = async (holders, retries) => {
   try {
     var addresses_to_check = []
     for (let i = 0; i < holders.length; i++) {
@@ -612,15 +609,14 @@ const get_holder_rug_vs_ape = async (holders) => {
     if (retries > 5) {
       return {err: e}
     }
-    await sleep((Math.random() * 6) + (2 * retries))
+    await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
     retries += 1
-    return await get_holder_rug_vs_ape(holders)
+    return await get_holder_rug_vs_ape(holders, retries)
   }
 }
 exports.get_holder_rug_vs_ape = get_holder_rug_vs_ape
 
-const get_wallet_time_stats = async (holders) => {
-  let retries = 0;
+const get_wallet_time_stats = async (holders, retries) => {
   try {
     let addresses_to_check = [];
     for (let h of holders) {
@@ -667,8 +663,8 @@ const get_wallet_time_stats = async (holders) => {
       return {err: e}
     }
     retries++;
-    await sleep((Math.random() * 6) + (2 * retries))
-    return get_wallet_time_stats(holders);
+    await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
+    return get_wallet_time_stats(holders, retries);
   }
 }
 
