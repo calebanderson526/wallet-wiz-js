@@ -15,7 +15,7 @@ const web3 = new Web3(alchemy_endpoint)
 const arbiscan_url = process.env.ARBISCAN_API_URL
 const arbiscan_key = process.env.ARBISCAN_API_KEY
 const dex_screener_url = process.env.DEXSCREENER_API_URL
-const alchemy_time = 0
+const alchemy_time = 10
 
 const erc20_balance_checks = [
   {
@@ -182,9 +182,9 @@ const get_holders = async (token_address, start_date) => {
   } catch (e) {
     console.log(e)
     if (retries > 5) {
-      process.exit()
+      return {err: e}
     }
-    await sleep(5000)
+    await sleep((Math.random() * 6) + (2 * retries))
     retries += 1
     return await get_holders(token_address)
   }
@@ -209,10 +209,10 @@ const get_contract_names = async (holders) => {
 
     console.log(e)
     if (retries > 5) {
-      process.exit()
+      return {err: e}
     }
-    await sleep(5000)
     retries += 1
+    await sleep((Math.random() * 6) + (2 * retries))
     return await get_contract_names(holders)
   }
 }
@@ -246,9 +246,9 @@ const update_is_contract_names = async (byte_codes, holders) => {
   } catch (e) {
     console.log(e)
     if (retries > 5) {
-      process.exit()
+      return {err: e}
     }
-    await sleep(5000)
+    await sleep((Math.random() * 6) + (2 * retries))
     retries += 1
     return await update_is_contract_names(byte_codes, holders)
   }
@@ -301,9 +301,9 @@ const get_holder_balances = async (holders) => {
   } catch (e) {
     console.log(e)
     if (retries > 5) {
-      process.exit()
+      return {err: e}
     }
-    await sleep(5000)
+    await sleep((Math.random() * 6) + (2 * retries))
     retries += 1
     return await get_holder_balances(holders)
   }
@@ -610,9 +610,9 @@ const get_holder_rug_vs_ape = async (holders) => {
   } catch (e) {
     console.log(e)
     if (retries > 5) {
-      process.exit()
+      return {err: e}
     }
-    await sleep(5000)
+    await sleep((Math.random() * 6) + (2 * retries))
     retries += 1
     return await get_holder_rug_vs_ape(holders)
   }
@@ -664,10 +664,10 @@ const get_wallet_time_stats = async (holders) => {
   } catch (e) {
     console.log(e);
     if (retries > 5) {
-      process.exit();
+      return {err: e}
     }
     retries++;
-    await sleep(5000);
+    await sleep((Math.random() * 6) + (2 * retries))
     return get_wallet_time_stats(holders);
   }
 }
