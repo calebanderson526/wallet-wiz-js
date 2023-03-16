@@ -88,7 +88,6 @@ function unixTimeMillisToString(timestamp_ms) {
 
   // Use the Date constructor to convert the timestamp to a Date object
   const date = new Date(timestamp_sec * 1000);
-  console.log(date)
 
   // Use the Date object methods to construct the date string in the desired format
   const year = date.getFullYear();
@@ -222,17 +221,27 @@ exports.get_contract_names = get_contract_names
 const update_is_contract_names = async (byte_codes, holders) => {
   var retries = 0
   try {
+    var source_codes = []
+    // do the api calls
     for (let i = 0; i < byte_codes.length; i++) {
       if (byte_codes[i] == '0x') {
         holders[i].is_contract = false
         continue
       }
       var query_str = `?module=contract&action=getsourcecode&address=${holders[i].address}`
-      var source_code = await axios.get(arbiscan_url + query_str)
-      var name = source_code.data.result[0].ContractName
+      source_codes.push(await axios.get(arbiscan_url + query_str))
+      await sleep(220)
+    }
+    // update the table
+    let j = 0
+    for (let i = 0; i < byte_codes.length; i++) {
+      if (byte_codes[i] == '0x') {
+        continue
+      }
+      var name = source_codes[j].data.result[0].ContractName
       holders[i].address_name = name != '' && name ? name : 'Unverified Contract'
       holders[i].is_contract = true
-      await sleep(220)
+      j += 1
     }
   } catch (e) {
     console.log(e)
@@ -366,10 +375,10 @@ const groupPairsBySymbol = (pairs) => {
 
   // Convert the Map back to an array of pairs
   const uniquePairs = Array.from(map.values());
-
   return uniquePairs
-
 }
+
+
 const get_holder_rug_vs_ape = async (holders) => {
   var retries = 0
   try {
@@ -438,48 +447,142 @@ const get_holder_rug_vs_ape = async (holders) => {
       holder_to_ape_count[row['address']] = (holder_to_ape_count[row['address']] || 0) + 1;
     }
 
-    let i = 0;
-    const dexscreener_max_batch = 30;
-    // base token addresses
-    var base_tokens = [
-      // usdc
-      '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8'.toLowerCase(), 
-      //weth
-      '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'.toLowerCase(),
-      //usdt
-      '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9'.toLowerCase(),
-      //btc
-      '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f'.toLowerCase(),
-    ]
-    while (i * dexscreener_max_batch < unique_tokens.length) {
-      let cur_tokens = unique_tokens.slice(i * dexscreener_max_batch, (i + 1) * dexscreener_max_batch);
-      let response = await axios.get(`${dex_screener_url}/dex/tokens/${cur_tokens.join(",")}`);
-      let res = response.data
-      await sleep(3000);
-      var groupedPairs = groupPairsBySymbol(res['pairs'])
-      for (let p of groupedPairs) {
-        if (base_tokens.includes(p.quoteToken.address.toLowerCase())) {
-          var token_address = p.baseToken.address
-        } else if (base_tokens.includes(p.baseToken.address.toLowerCase()) && base_tokens.includes(p.quoteToken.address.toLowerCase())) {
-          continue
-        } else {
-          var token_address = p.quoteToken.address
-        }
-        if (!token_to_holders[token_address.toLowerCase()]) {
-          console.log('bad things happened flipside missing data i think')
-          continue
-        }
-        for (let h of token_to_holders[token_address.toLowerCase()]) {
-          if (!p.liquidity) {
-            holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
-            continue
-          } else if (p['liquidity']['usd'] < 1000 || p['txns']['h6']['buys'] <= 0) {
-            holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
-          }
+    var tokens_with_quotes = unique_tokens.map(token => `'${token}'`)
+    var token_str = tokens_with_quotes.join(',')
+    console.log('done with 1st rug vs ape query')
+
+    var sql2 = `
+      SELECT
+        a.contract_address,
+        COUNT(*) > 1 as is_inactive
+      FROM
+        arbitrum.core.fact_token_transfers a
+      WHERE
+        a.contract_address in (${token_str})
+        and datediff(hour, a.block_timestamp, getDate()) < 9
+      group BY
+        a.contract_address
+    `
+    const query2 = {
+      sql: sql2,
+      ttlMinutes: 10
+    }
+    var query_result2 = await flipside.query.run(query2)
+    var found_rugs = []
+    for (let token of unique_tokens) {
+      var test = query_result2.records.find(x => x.contract_address == token)
+      if (!test) {
+        found_rugs.push(token)
+        for (let h of token_to_holders[token]) {
+          holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
         }
       }
-      i += 1;
     }
+
+    // let i = 0;
+    // const dexscreener_max_batch = 30;
+    // // base token addresses
+    // var base_tokens = [
+    //   // usdc
+    //   '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8'.toLowerCase(),
+    //   //weth
+    //   '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'.toLowerCase(),
+    //   //usdt
+    //   '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9'.toLowerCase(),
+    //   //btc
+    //   '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f'.toLowerCase(),
+    // ]
+    // var found_rugs = []
+    // var responses = []
+    // for (let token of unique_tokens) {
+    //   responses.push(await axios.get(`${dex_screener_url}/dex/tokens/${token}`));
+    //   await sleep(100)
+    // }
+    // j = 0
+    // for (let token of unique_tokens) {
+    //   let res = responses[j].data
+    //   j += 1
+    //   // var groupedPairs = groupPairsBySymbol(res['pairs'])
+    //   var groupedPairs = res['pairs']
+    //   if (!groupedPairs) {
+    //     console.log(token, 'was null')
+    //     console.log(res)
+    //     continue
+    //   }
+
+    //   const token_pairs_for_token = groupedPairs.filter(pair =>
+    //     pair.quoteToken.address.toLowerCase() === token || pair.baseToken.address.toLowerCase() === token
+    //   );
+
+    //   let found_rug = true;
+    //   for (const pair of token_pairs_for_token) {
+    //     if (pair.liquidity && pair.liquidity.usd > 1000 && pair.txns.h6.buys > 0) {
+    //       found_rug = false;
+    //       break;
+    //     }
+    //   }
+
+    //   if (found_rug) {
+    //     found_rugs.push(token)
+    //     const rug_holders = token_to_holders[token] || [];
+    //     for (const h of rug_holders) {
+    //       holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
+    //     }
+    //   }
+
+      // for (const unique_token of cur_tokens) {
+      //   if (found_rugs.includes(unique_token) || base_tokens.includes(unique_token)) {
+      //     continue
+      //   }
+      //   const token_pairs_for_token = groupedPairs.filter(pair =>
+      //     pair.quoteToken.address.toLowerCase() === unique_token || pair.baseToken.address.toLowerCase() === unique_token
+      //   );
+
+      //   let found_rug = true;
+      //   console.log(token_pairs_for_token.length)
+      //   for (const pair of token_pairs_for_token) {
+      //     if (pair.liquidity && pair.liquidity.usd > 1000 && pair.txns.h6.buys > 0) {
+      //       found_rug = false;
+      //       console.log(false)
+      //       break;
+      //     }
+      //   }
+
+      //   if (found_rug) {
+      //     found_rugs.push(unique_token)
+      //     const rug_holders = token_to_holders[unique_token] || [];
+      //     console.log(unique_token)
+      //     for (const h of rug_holders) {
+      //       holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
+      //     }
+      //   }
+      // }
+
+      // for (let p of groupedPairs) {
+      //   if (base_tokens.includes(p.quoteToken.address.toLowerCase())) {
+      //     var token_address = p.baseToken.address
+      //   } else if (base_tokens.includes(p.baseToken.address.toLowerCase()) && base_tokens.includes(p.quoteToken.address.toLowerCase())) {
+      //     continue
+      //   } else {
+      //     var token_address = p.quoteToken.address
+      //   }
+      //   if (!token_to_holders[token_address.toLowerCase()]) {
+      //     console.log('bad things happened flipside missing data i think')
+      //     continue
+      //   }
+      //   for (let h of token_to_holders[token_address.toLowerCase()]) {
+      //     if (!p.liquidity) {
+      //       holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
+      //       continue
+      //     } else if (p['liquidity']['usd'] < 1000 || p['txns']['h6']['buys'] <= 0) {
+      //       holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
+      //     }
+      //   }
+      // }
+      // i += 1;
+    // }
+    
+    // console.log(found_rugs)
 
     for (let i = 0; i < holders.length; i++) {
       for (let ha in holder_to_ape_count) {
