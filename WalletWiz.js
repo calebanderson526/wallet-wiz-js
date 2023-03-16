@@ -228,8 +228,8 @@ const update_is_contract_names = async (byte_codes, holders) => {
         holders[i].is_contract = false
         continue
       }
-      var query_str = `?module=contract&action=getsourcecode&address=${holders[i].address}`
-      source_codes.push(await axios.get(arbiscan_url + query_str))
+      var query_str = `?module=contract&action=getsourcecode&address=${holders[i].address}&apikey=`
+      source_codes.push(await axios.get(arbiscan_url + query_str + arbiscan_key))
       await sleep(220)
     }
     // update the table

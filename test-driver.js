@@ -7,7 +7,7 @@ async function run() {
     // const result = await handler({
     //     "body": "{\"address\": \"0x73eD68B834e44096eB4beA6eDeAD038c945722F1\"}"
     // })
-    const result = await get_holders('0xaa54e84a3e6e5a80288d2c2f8e36ea5ca3a3ca30', 1676632855000)
+    const result = await get_holders('0xa0eeBB0E5C3859a1c5412C2380c074f2f6725e2E', 1676632855000)
     console.log('get holders')
     const result3 = await get_contract_names(result)
     console.log('get names')
