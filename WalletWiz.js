@@ -245,7 +245,7 @@ const update_is_contract_names = async (byte_codes, holders, retries) => {
     if (retries > 5) {
       return {err: e}
     }
-    await sleep((Math.random() * 6) + (2 * retries))
+    await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
     retries += 1
     return await update_is_contract_names(byte_codes, holders, retries)
   }
