@@ -15,7 +15,7 @@ const web3 = new Web3(alchemy_endpoint)
 const arbiscan_url = process.env.ARBISCAN_API_URL
 const arbiscan_key = process.env.ARBISCAN_API_KEY
 const dex_screener_url = process.env.DEXSCREENER_API_URL
-const alchemy_time = 10
+const alchemy_time = 66
 
 const erc20_balance_checks = [
   {
@@ -210,7 +210,7 @@ const get_contract_names = async (holders, retries) => {
       return {err: e}
     }
     retries += 1
-    await sleep((Math.random() * 6) + (2 * retries))
+    await sleep((Math.random() * 6) + (2 * retries) * 1000)
     return await get_contract_names(holders, retries)
   }
 }
