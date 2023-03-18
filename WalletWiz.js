@@ -15,7 +15,7 @@ const web3 = new Web3(alchemy_endpoint)
 const arbiscan_url = process.env.ARBISCAN_API_URL
 const arbiscan_key = process.env.ARBISCAN_API_KEY
 const dex_screener_url = process.env.DEXSCREENER_API_URL
-const alchemy_time = 66
+const alchemy_time = 40
 
 const erc20_balance_checks = [
   {
@@ -308,75 +308,6 @@ const get_holder_balances = async (holders, retries) => {
 }
 exports.get_holder_balances = get_holder_balances
 
-
-// I have a list of pairs in javascript
-
-// some pairs might have the same .baseToken.symbol as another's .quoteToken.symbol
-// some pairs might have the same .baseToken.symbol as another's .baseToken.symbol
-// some pairs might have the same .quoteToken.symbol as another's .quoteToken.symbol
-
-// I want to remove the duplicates, taking the one with the highest value in .liquidity.usd
-// Some pairs might not have a .liquidity.usd property, in that case just take the first one.
-const groupPairsBySymbol = (pairs) => {
-  // Create a Map to store pairs based on unique symbols
-  const map = new Map();
-  if (!pairs) {
-    console.log('pairs was null')
-    return []
-  }
-
-  pairs.forEach((pair) => {
-    // Generate unique keys for the pair based on the symbol combination
-    const baseTokenKey = pair.baseToken.address;
-    const quoteTokenKey = pair.quoteToken.address;
-
-    // Check if the pair already exists in the map based on baseTokenKey
-    if (map.has(baseTokenKey)) {
-      // Get the existing pair from the map based on baseTokenKey
-      const existingPair = map.get(baseTokenKey);
-
-      // Check if the existing pair has a liquidity value
-      if (existingPair.liquidity && pair.liquidity) {
-        // Compare the liquidity values and keep the higher one
-        if (pair.liquidity.usd > existingPair.liquidity.usd) {
-          map.set(baseTokenKey, pair);
-        }
-      } else {
-        // If either pair doesn't have a liquidity value, keep the first one
-        map.set(baseTokenKey, existingPair);
-      }
-    } else {
-      // If the pair doesn't exist in the map based on baseTokenKey, add it
-      map.set(baseTokenKey, pair);
-    }
-
-    // Check if the pair already exists in the map based on quoteTokenKey
-    if (map.has(quoteTokenKey)) {
-      // Get the existing pair from the map based on quoteTokenKey
-      const existingPair = map.get(quoteTokenKey);
-
-      // Check if the existing pair has a liquidity value
-      if (existingPair.liquidity && pair.liquidity) {
-        // Compare the liquidity values and keep the higher one
-        if (pair.liquidity.usd > existingPair.liquidity.usd) {
-          map.set(quoteTokenKey, pair);
-        }
-      } else {
-        // If either pair doesn't have a liquidity value, keep the first one
-        map.set(quoteTokenKey, existingPair);
-      }
-    } else {
-      // If the pair doesn't exist in the map based on quoteTokenKey, add it
-      map.set(quoteTokenKey, pair);
-    }
-  });
-
-  // Convert the Map back to an array of pairs
-  const uniquePairs = Array.from(map.values());
-  return uniquePairs
-}
-
-
 const get_holder_rug_vs_ape = async (holders, retries) => {
   try {
     var addresses_to_check = []
@@ -389,35 +320,12 @@ const get_holder_rug_vs_ape = async (holders, retries) => {
     var addr_str = addr_with_quotes.join(',')
     var sql = `
     SELECT
-      address,
-      contract_address,
-      sum(count)
+      from_address AS address,
+      contract_address
     FROM
-      (
-        SELECT
-          from_address AS address,
-          contract_address,
-          COUNT(*) as count
-        FROM
-          arbitrum.core.fact_token_transfers
-        WHERE
-          from_address  IN (${addr_str})
-        group by
-          address,
-          contract_address
-        UNION
-        SELECT
-          to_address AS address,
-          contract_address,
-          COUNT(*) as count
-        FROM
-          arbitrum.core.fact_token_transfers
-        WHERE
-          to_address IN (${addr_str})
-        group by
-          address,
-          contract_address
-      ) t
+      arbitrum.core.fact_token_transfers
+    WHERE
+      from_address IN (${addr_str})
     GROUP BY
       address,
       contract_address
@@ -450,15 +358,12 @@ const get_holder_rug_vs_ape = async (holders, retries) => {
 
     var sql2 = `
       SELECT
-        a.contract_address,
-        COUNT(*) > 1 as is_inactive
+        a.contract_address
       FROM
         arbitrum.core.fact_token_transfers a
       WHERE
         a.contract_address in (${token_str})
-        and datediff(hour, a.block_timestamp, getDate()) < 9
-      group BY
-        a.contract_address
+        and datediff(hour, a.block_timestamp, getDate()) < 11
     `
     const query2 = {
       sql: sql2,
@@ -475,111 +380,6 @@ const get_holder_rug_vs_ape = async (holders, retries) => {
         }
       }
     }
-
-    // let i = 0;
-    // const dexscreener_max_batch = 30;
-    // // base token addresses
-    // var base_tokens = [
-    //   // usdc
-    //   '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8'.toLowerCase(),
-    //   //weth
-    //   '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'.toLowerCase(),
-    //   //usdt
-    //   '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9'.toLowerCase(),
-    //   //btc
-    //   '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f'.toLowerCase(),
-    // ]
-    // var found_rugs = []
-    // var responses = []
-    // for (let token of unique_tokens) {
-    //   responses.push(await axios.get(`${dex_screener_url}/dex/tokens/${token}`));
-    //   await sleep(100)
-    // }
-    // j = 0
-    // for (let token of unique_tokens) {
-    //   let res = responses[j].data
-    //   j += 1
-    //   // var groupedPairs = groupPairsBySymbol(res['pairs'])
-    //   var groupedPairs = res['pairs']
-    //   if (!groupedPairs) {
-    //     console.log(token, 'was null')
-    //     console.log(res)
-    //     continue
-    //   }
-
-    //   const token_pairs_for_token = groupedPairs.filter(pair =>
-    //     pair.quoteToken.address.toLowerCase() === token || pair.baseToken.address.toLowerCase() === token
-    //   );
-
-    //   let found_rug = true;
-    //   for (const pair of token_pairs_for_token) {
-    //     if (pair.liquidity && pair.liquidity.usd > 1000 && pair.txns.h6.buys > 0) {
-    //       found_rug = false;
-    //       break;
-    //     }
-    //   }
-
-    //   if (found_rug) {
-    //     found_rugs.push(token)
-    //     const rug_holders = token_to_holders[token] || [];
-    //     for (const h of rug_holders) {
-    //       holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
-    //     }
-    //   }
-
-      // for (const unique_token of cur_tokens) {
-      //   if (found_rugs.includes(unique_token) || base_tokens.includes(unique_token)) {
-      //     continue
-      //   }
-      //   const token_pairs_for_token = groupedPairs.filter(pair =>
-      //     pair.quoteToken.address.toLowerCase() === unique_token || pair.baseToken.address.toLowerCase() === unique_token
-      //   );
-
-      //   let found_rug = true;
-      //   console.log(token_pairs_for_token.length)
-      //   for (const pair of token_pairs_for_token) {
-      //     if (pair.liquidity && pair.liquidity.usd > 1000 && pair.txns.h6.buys > 0) {
-      //       found_rug = false;
-      //       console.log(false)
-      //       break;
-      //     }
-      //   }
-
-      //   if (found_rug) {
-      //     found_rugs.push(unique_token)
-      //     const rug_holders = token_to_holders[unique_token] || [];
-      //     console.log(unique_token)
-      //     for (const h of rug_holders) {
-      //       holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
-      //     }
-      //   }
-      // }
-
-      // for (let p of groupedPairs) {
-      //   if (base_tokens.includes(p.quoteToken.address.toLowerCase())) {
-      //     var token_address = p.baseToken.address
-      //   } else if (base_tokens.includes(p.baseToken.address.toLowerCase()) && base_tokens.includes(p.quoteToken.address.toLowerCase())) {
-      //     continue
-      //   } else {
-      //     var token_address = p.quoteToken.address
-      //   }
-      //   if (!token_to_holders[token_address.toLowerCase()]) {
-      //     console.log('bad things happened flipside missing data i think')
-      //     continue
-      //   }
-      //   for (let h of token_to_holders[token_address.toLowerCase()]) {
-      //     if (!p.liquidity) {
-      //       holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
-      //       continue
-      //     } else if (p['liquidity']['usd'] < 1000 || p['txns']['h6']['buys'] <= 0) {
-      //       holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
-      //     }
-      //   }
-      // }
-      // i += 1;
-    // }
-    
-    // console.log(found_rugs)
 
     for (let i = 0; i < holders.length; i++) {
       for (let ha in holder_to_ape_count) {
