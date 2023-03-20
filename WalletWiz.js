@@ -1,6 +1,6 @@
 require('dotenv').config();
 const Web3 = require('web3');
-const { Flipside, Query, QueryResultSet } = require("@flipsidecrypto/sdk");
+const { Flipside, Query, QueryResultSet } = require("./@flipsidecrypto/sdk");
 const erc20_abi = require("./erc20_abi.json");
 const axios = require('axios');
 const { calculate_scores } = require('./HealthScore')
