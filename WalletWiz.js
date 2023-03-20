@@ -179,13 +179,14 @@ const get_holders = async (token_address, start_date, retries) => {
     const result = await flipside.query.run(query)
     return result.records
   } catch (e) {
-    console.log(e)
+    console.log(e, retries)
     if (retries > 5) {
       return {err: e}
     }
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
-    retries += 1
-    return await get_holders(token_address, retries)
+    var tmp = retries + 1
+    console.log(tmp)
+    return await get_holders(token_address, start_date, tmp)
   }
 }
 exports.get_holders = get_holders
