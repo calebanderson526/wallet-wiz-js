@@ -118,6 +118,6 @@ app.post('/api/v1/calculate-scores', async (req, res) => {
 });
 
 // Start server
-app.listen(8081, () => {
-    console.log('Server started on port 8081');
+app.listen(process.env.PORT ? process.env.PORT : 8081, () => {
+    console.log(`Server started on port ${process.env.PORT ? process.env.PORT : 8081}`);
 });
