@@ -24,11 +24,12 @@ app.post('/api/v1/get-holders', async (req, res) => {
     const { address, start_date } = req.body;
     console.log('get holders')
     const holders = await get_holders(address, start_date, 0);
-    if (holders.length === 0) {
+    
+    if (holders.err) {
+        res.status(500).json( {message: 'Something went wrong on our end possible server overload', error: holders.err} )
+    } else if (holders.length && holders.length === 0) {
         console.log(`/api/v1/get-holders response time: ${(new Date()).getTime() - start.getTime()}`)
         res.status(400).json({ message: 'invalid token address or no holders detected' })
-    } else if (holders.err) {
-        res.status(500).json( {message: 'Something went wrong on our end possible server overload', error: holders.err} )
     } else {
         console.log(`/api/v1/get-holders response time: ${(new Date()).getTime() - start.getTime()}`)
         res.json(holders);
@@ -120,5 +121,4 @@ app.post('/api/v1/calculate-scores', async (req, res) => {
 // Start server
 app.listen(process.env.PORT ? process.env.PORT : 8081, () => {
     console.log(`Server started on port ${process.env.PORT ? process.env.PORT : 8081}`);
-    console.log(process.env)
 });
