@@ -176,7 +176,6 @@ const get_holders = async (token_address, start_date, retries) => {
       `,
       ttlMinutes: 10
     };
-    console.log(query.sql)
     const result = await flipside.query.run(query)
     return result.records
   } catch (e) {
