@@ -21,9 +21,9 @@ app.get('/', async (req, res) => {
 // Define routes
 app.post('/api/v1/get-holders', async (req, res) => {
     var start = new Date()
-    const { address, start_date } = req.body;
+    const { address, start_date, snapshot_time } = req.body;
     console.log('get holders')
-    const holders = await get_holders(address, start_date, 0);
+    const holders = await get_holders(address, start_date, snapshot_time, 0);
     
     if (holders.err) {
         res.status(500).json( {message: 'Something went wrong on our end possible server overload', error: holders.err} )

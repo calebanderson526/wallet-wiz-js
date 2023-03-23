@@ -81,13 +81,9 @@ const merge_holders = (holders1, holders2) => {
 exports.merge_holders = merge_holders
 
 function unixTimeMillisToString(timestamp_ms) {
-  // Convert the Unix timestamp from milliseconds to seconds
-  var threeDaysInMs = 432000 / 2
-  var timestamp_sec = timestamp_ms / 1000
-  timestamp_sec -= threeDaysInMs
 
   // Use the Date constructor to convert the timestamp to a Date object
-  const date = new Date(timestamp_sec * 1000);
+  const date = new Date(timestamp_ms);
 
   // Use the Date object methods to construct the date string in the desired format
   const year = date.getFullYear();
@@ -103,8 +99,7 @@ function unixTimeMillisToString(timestamp_ms) {
   return dateString;
 }
 
-
-const get_holders = async (token_address, start_date, retries) => {
+const get_holders = async (token_address, start_date, snapshot_time, retries) => {
   try {
     const query = {
       sql: `
@@ -137,7 +132,8 @@ const get_holders = async (token_address, start_date, retries) => {
               from
                 arbitrum.core.fact_token_transfers a
               where
-                a.block_timestamp > '${unixTimeMillisToString(start_date)}' and 
+                a.block_timestamp > '${unixTimeMillisToString(start_date - 604800000)}' and 
+                ${snapshot_time != -1 ? `a.block_timestamp < '${unixTimeMillisToString(snapshot_time)}' and ` : ''}
                 a.contract_address = LOWER('${token_address}')
               group by
                 2
@@ -160,7 +156,8 @@ const get_holders = async (token_address, start_date, retries) => {
               from
                 arbitrum.core.fact_token_transfers a
               where
-                a.block_timestamp > '${unixTimeMillisToString(start_date)}' and 
+                a.block_timestamp > '${unixTimeMillisToString(start_date - 604800000)}' and 
+                ${snapshot_time != -1 ? `a.block_timestamp < '${unixTimeMillisToString(snapshot_time)}' and ` : ''}
                 a.contract_address = LOWER('${token_address}')
               group by
                 2
@@ -174,9 +171,10 @@ const get_holders = async (token_address, start_date, retries) => {
       order by
         holding desc
       `,
-      ttlMinutes: 10
+      ttlMinutes: 1
     };
     const result = await flipside.query.run(query)
+    console.log(result)
     return result.records
   } catch (e) {
     console.log(e, retries)
@@ -186,7 +184,7 @@ const get_holders = async (token_address, start_date, retries) => {
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
     var tmp = retries + 1
     console.log(tmp)
-    return await get_holders(token_address, start_date, tmp)
+    return await get_holders(token_address, start_date, snapshot_time, tmp)
   }
 }
 exports.get_holders = get_holders
