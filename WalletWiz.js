@@ -400,7 +400,7 @@ const get_holder_rug_vs_ape = async (holders, retries) => {
         arbitrum.core.fact_token_transfers a
       WHERE
         a.contract_address in (${token_str})
-        and datediff(hour, a.block_timestamp, getDate()) < 24
+        and datediff(hour, a.block_timestamp, getDate()) < 12
     `
     const query2 = {
       sql: sql2,
