@@ -79,8 +79,12 @@ app.post('/api/v1/get-holder-rug-vs-ape', async (req, res) => {
         res.status(500).json( {message: 'Something went wrong on our end possible server overload', error: holders.err} )
     } else {
         console.log(`/api/v1/get-holder-rug-vs-ape response time: ${(new Date()).getTime() - start.getTime()}`)
-        const mergedHolderRugVsApe = merge_holders(holders, holder_rug_vs_ape);
-        res.json(mergedHolderRugVsApe);
+        const mergedHolderRugVsApe = merge_holders(holders, holder_rug_vs_ape.holders);
+        res.json({
+            'holders': mergedHolderRugVsApe, 
+            common_rugs: holder_rug_vs_ape.common_rugs,
+            common_apes: holder_rug_vs_ape.common_apes
+        });
     }
 });
 

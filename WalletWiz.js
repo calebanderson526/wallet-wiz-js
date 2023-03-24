@@ -179,7 +179,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries) =>
   } catch (e) {
     console.log(e, retries)
     if (retries > 5) {
-      return {err: e}
+      return { err: e }
     }
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
     var tmp = retries + 1
@@ -206,7 +206,7 @@ const get_contract_names = async (holders, retries) => {
 
     console.log(e)
     if (retries > 5) {
-      return {err: e}
+      return { err: e }
     }
     retries += 1
     await sleep((Math.random() * 6) + (2 * retries) * 1000)
@@ -242,7 +242,7 @@ const update_is_contract_names = async (byte_codes, holders, retries) => {
   } catch (e) {
     console.log(e)
     if (retries > 5) {
-      return {err: e}
+      return { err: e }
     }
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
     retries += 1
@@ -296,7 +296,7 @@ const get_holder_balances = async (holders, retries) => {
   } catch (e) {
     console.log(e)
     if (retries > 5) {
-      return {err: e}
+      return { err: e }
     }
     var time_to_sleep = ((Math.random() * 10) + (2 * retries)) * 1000
     console.log(time_to_sleep)
@@ -306,6 +306,37 @@ const get_holder_balances = async (holders, retries) => {
   }
 }
 exports.get_holder_balances = get_holder_balances
+
+const get_common_rugs_and_apes = (token_to_holders, found_rugs, token_to_name) => {
+  const tokenKeys = Object.keys(token_to_holders);
+
+  // Filter out the keys in found_rugs
+  const tokenKeysNotInRugs = tokenKeys.filter(key => !found_rugs.includes(key));
+
+  // Sort token_to_holders by the length of the arrays in descending order
+  const sortedTokenHolders = tokenKeysNotInRugs.sort((a, b) => token_to_holders[b].length - token_to_holders[a].length);
+
+  // Get the top 5 keys and their array lengths
+  const top5KeysAndLengths = sortedTokenHolders.map(key => ({ address: key, count: token_to_holders[key].length }));
+
+  // Repeat the above steps for the keys that are found in found_rugs
+  const tokenKeysInRugs = tokenKeys.filter(key => found_rugs.includes(key));
+  const sortedTokenHoldersInRugs = tokenKeysInRugs.sort((a, b) => token_to_holders[b].length - token_to_holders[a].length);
+  const top5KeysAndLengthsInRugs = sortedTokenHoldersInRugs.map(key => ({ address: key, count: token_to_holders[key].length }));
+  for (let rug of top5KeysAndLengthsInRugs) {
+    rug.name = token_to_name[rug['address']]
+  }
+
+  for (let ape of top5KeysAndLengths) {
+    ape.name = token_to_name[ape['address']]
+  }
+
+  return {
+    apes: top5KeysAndLengths,
+    rugs: top5KeysAndLengthsInRugs,
+  };
+}
+
 
 const get_holder_rug_vs_ape = async (holders, retries) => {
   try {
@@ -320,14 +351,19 @@ const get_holder_rug_vs_ape = async (holders, retries) => {
     var sql = `
     SELECT
       from_address AS address,
-      contract_address
+      contract_address,
+      d.name
     FROM
       arbitrum.core.fact_token_transfers
+      left join arbitrum.core.dim_contracts d on contract_address = d.address
     WHERE
-      from_address IN (${addr_str})
+      from_address IN (
+        ${addr_str}
+      )
     GROUP BY
-      address,
-      contract_address
+      from_address,
+      contract_address,
+      d.name
     `
 
     const query = {
@@ -338,6 +374,7 @@ const get_holder_rug_vs_ape = async (holders, retries) => {
     let holder_to_rug_count = {};
     let holder_to_ape_count = {};
     let token_to_holders = {};
+    let token_to_name = {}
     let unique_tokens = [];
 
     for (let row of query_result.records) {
@@ -349,6 +386,7 @@ const get_holder_rug_vs_ape = async (holders, retries) => {
       cur.push(row['address']);
       token_to_holders[row['contract_address']] = cur;
       holder_to_ape_count[row['address']] = (holder_to_ape_count[row['address']] || 0) + 1;
+      token_to_name[row['contract_address']] = row.name
     }
 
     var tokens_with_quotes = unique_tokens.map(token => `'${token}'`)
@@ -362,7 +400,7 @@ const get_holder_rug_vs_ape = async (holders, retries) => {
         arbitrum.core.fact_token_transfers a
       WHERE
         a.contract_address in (${token_str})
-        and datediff(hour, a.block_timestamp, getDate()) < 11
+        and datediff(hour, a.block_timestamp, getDate()) < 24
     `
     const query2 = {
       sql: sql2,
@@ -401,12 +439,18 @@ const get_holder_rug_vs_ape = async (holders, retries) => {
         holders[i]['ape_count'] = 0;
       }
     }
-    return holders;
+
+    var common_rugs_and_apes = get_common_rugs_and_apes(token_to_holders, found_rugs, token_to_name)
+    return {
+      'holders': holders,
+      'common_rugs': common_rugs_and_apes.rugs,
+      'common_apes': common_rugs_and_apes.apes
+    };
 
   } catch (e) {
     console.log(e)
     if (retries > 5) {
-      return {err: e}
+      return { err: e }
     }
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
     retries += 1
@@ -459,7 +503,7 @@ const get_wallet_time_stats = async (holders, retries) => {
   } catch (e) {
     console.log(e);
     if (retries > 5) {
-      return {err: e}
+      return { err: e }
     }
     retries++;
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
