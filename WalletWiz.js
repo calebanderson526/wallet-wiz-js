@@ -4,6 +4,7 @@ const { Flipside, Query, QueryResultSet } = require("./@flipsidecrypto/sdk");
 const erc20_abi = require("./erc20_abi.json");
 const axios = require('axios');
 const { calculate_scores } = require('./HealthScore')
+const alphaTokens = require('./alpha_info_output.json')
 
 
 const flipside = new Flipside(
@@ -174,7 +175,6 @@ const get_holders = async (token_address, start_date, snapshot_time, retries) =>
       ttlMinutes: 1
     };
     const result = await flipside.query.run(query)
-    console.log(result)
     return result.records
   } catch (e) {
     console.log(e, retries)
@@ -507,8 +507,82 @@ const get_wallet_time_stats = async (holders, retries) => {
     }
     retries++;
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
-    return get_wallet_time_stats(holders, retries);
+    return await get_wallet_time_stats(holders, retries);
   }
 }
 
 exports.get_wallet_time_stats = get_wallet_time_stats
+
+const get_early_alpha = async (holders, retries) => {
+  let results = [];
+  try {
+    const addressesToCheck = holders.filter(holder => !holder.is_contract && !holder.address_name).map(holder => holder.address);
+    let sql = `
+      SELECT
+        to_address AS address,
+        contract_address,
+        min(block_timestamp) as first_time
+      FROM
+        arbitrum.core.fact_token_transfers
+      WHERE
+        to_address IN (
+          ${addressesToCheck.map(token => `'${token}'`).join(', ')}
+        )
+      GROUP BY
+        to_address,
+        contract_address
+        `;
+    const query = {
+      sql: sql,
+      ttlMinutes: 10
+    }
+    var query_result = await flipside.query.run(query)
+    var queryResult = query_result.records
+
+    // Iterate over each row in the query result
+    for (let i = 0; i < queryResult.length; i++) {
+      let row = queryResult[i];
+      let address = row.address;
+      let contractAddress = row.contract_address;
+      let firstTime = new Date(row.first_time);
+      firstTime = firstTime.getTime() / 1000
+
+      // Iterate over each object in the JSON array
+      for (let j = 0; j < alphaTokens.length; j++) {
+        let obj = alphaTokens[j];
+        let id = obj.id;
+        let timeAt = obj.time_at;
+
+        // Check if the contract address is in the JSON array and the first time is within 1 week of time_at
+        //  && firstTime <= timeAt + (604800 * 10)
+        if (contractAddress == id && firstTime <= timeAt + (604800)) {
+          // Check if this address is already in the results array
+          let found = false;
+          for (let k = 0; k < results.length; k++) {
+            if (results[k].address === address) {
+              results[k].early_alpha.push({token_address: contractAddress, name: obj.name});
+              found = true;
+              break;
+            }
+          }
+
+          // If the address isn't already in the results array, add it with the contract address as an early alpha
+          if (!found) {
+            results.push({ address: address, early_alpha: [{token_address: contractAddress, name: obj.name}] });
+          }
+        }
+      }
+    }
+
+    return results;
+  } catch (e) {
+    console.log(e);
+    if (retries > 5) {
+      return { err: e }
+    }
+    retries++;
+    await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
+    return await get_early_alpha(holders, retries);
+  }
+}
+exports.get_early_alpha = get_early_alpha

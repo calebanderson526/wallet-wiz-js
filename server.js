@@ -6,7 +6,8 @@ const {
     get_holder_balances, 
     get_holder_rug_vs_ape, 
     get_holders, 
-    get_wallet_time_stats 
+    get_wallet_time_stats,
+    get_early_alpha
 } = require('./WalletWiz');
 const { calculate_scores } = require('./HealthScore')
 const cors = require('cors')
@@ -118,6 +119,23 @@ app.post('/api/v1/calculate-scores', async (req, res) => {
     } else {
         console.log(`/api/v1/calculate-scores response time: ${(new Date()).getTime() - start.getTime()}`)
         const mergedWalletScores = merge_holders(holders, scores);
+        res.json(mergedWalletScores);
+    }
+});
+
+app.post('/api/v1/get-early-alpha', async (req, res) => {
+    var start = new Date()
+    const { holders } = req.body;
+    console.log('get early alpha')
+    var early_alpha = await get_early_alpha(holders, 0)
+    if (early_alpha.length === 0) {
+        console.log(`response time: ${(new Date()).getTime() - start.getTime()}`)
+        res.status(400).json({ message: 'invalid request no data found' })
+    } else if (early_alpha.err) {
+        res.status(500).json( {message: 'Something went wrong on our end possible server overload', error: holders.err} )
+    } else {
+        console.log(`/api/v1/get-early-alpha response time: ${(new Date()).getTime() - start.getTime()}`)
+        const mergedWalletScores = merge_holders(holders, early_alpha);
         res.json(mergedWalletScores);
     }
 });
