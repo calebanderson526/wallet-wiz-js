@@ -1,85 +1,22 @@
 require('dotenv').config();
 const Web3 = require('web3');
-const { Flipside, Query, QueryResultSet } = require("./@flipsidecrypto/sdk");
+const { Flipside } = require("./@flipsidecrypto/sdk/dist/src");
 const erc20_abi = require("./erc20_abi.json");
 const axios = require('axios');
-const { calculate_scores } = require('./HealthScore')
 const alphaTokens = require('./alpha_info_output.json')
+const { merge_holders } = require('./middleware')
 
 
 const flipside = new Flipside(
   process.env.FLIPSIDE_API_KEY,
   "https://node-api.flipsidecrypto.com"
 )
-const alchemy_endpoint = process.env.ALCHEMY_API_URL + process.env.ALCHEMY_API_KEY
-const web3 = new Web3(alchemy_endpoint)
 const arbiscan_url = process.env.ARBISCAN_API_URL
 const arbiscan_key = process.env.ARBISCAN_API_KEY
-const dex_screener_url = process.env.DEXSCREENER_API_URL
 const alchemy_time = 40
 
-const erc20_balance_checks = [
-  {
-    'symbol': 'USDC',
-    'address': '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
-    'contract': new web3.eth.Contract(
-      erc20_abi,
-      '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8'
-    )
-  },
-  {
-    'symbol': 'USDT',
-    'address': '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
-    'contract': new web3.eth.Contract(
-      erc20_abi,
-      '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
-    )
-  },
-  {
-    'symbol': 'WETH',
-    'address': '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
-    'contract': new web3.eth.Contract(
-      erc20_abi,
-      '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'
-    )
-  }
-]
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-const test_token = async (token_address) => {
-  var holders = await get_holders(token_address)
-  if (!holders) {
-    console.log('!holders')
-    return { error: 'no holders detected' }
-  } else if (holders.length == 0) {
-    return { error: 'no holders detected' }
-  }
-  var contract_named_holders = await get_contract_names(holders)
-  var balances_holders = await get_holder_balances(holders)
-  var rug_vs_ape_holders = await get_holder_rug_vs_ape(holders)
-  var time_stats_holders = await get_wallet_time_stats(holders)
-  holders = merge_holders(holders, contract_named_holders)
-  holders = merge_holders(holders, balances_holders)
-  holders = merge_holders(holders, rug_vs_ape_holders)
-  holders = merge_holders(holders, time_stats_holders)
-  holders = calculate_scores(holders)
-
-  return holders
-}
-exports.test_token = test_token
-
-const merge_holders = (holders1, holders2) => {
-  var merged = [];
-  for (let i = 0; i < holders1.length; i++) {
-    merged.push({
-      ...holders1[i],
-      ...(holders2.find((item) => item.address == holders1[i].address))
-    })
-  }
-  return merged
-}
-exports.merge_holders = merge_holders
 
 function unixTimeMillisToString(timestamp_ms) {
 
@@ -100,7 +37,7 @@ function unixTimeMillisToString(timestamp_ms) {
   return dateString;
 }
 
-const get_holders = async (token_address, start_date, snapshot_time, retries) => {
+const get_holders = async (token_address, start_date, snapshot_time, retries, chain) => {
   try {
     const query = {
       sql: `
@@ -123,7 +60,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries) =>
                       select
                         decimals
                       from
-                        arbitrum.core.dim_contracts c
+                        ${chain}.core.dim_contracts c
                       where
                         c.address = LOWER('${token_address}')
                     )
@@ -131,7 +68,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries) =>
                 ) as total,
                 TO_ADDRESS as address
               from
-                arbitrum.core.fact_token_transfers a
+                ${chain}.core.fact_token_transfers a
               where
                 a.block_timestamp > '${unixTimeMillisToString(start_date - 604800000)}' and 
                 ${snapshot_time != -1 ? `a.block_timestamp < '${unixTimeMillisToString(snapshot_time)}' and ` : ''}
@@ -147,7 +84,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries) =>
                       select
                         decimals
                       from
-                        arbitrum.core.dim_contracts c
+                       ${chain}.core.dim_contracts c
                       where
                         c.address = LOWER('${token_address}')
                     )
@@ -155,7 +92,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries) =>
                 ) as total,
                 FROM_ADDRESS as address
               from
-                arbitrum.core.fact_token_transfers a
+                ${chain}.core.fact_token_transfers a
               where
                 a.block_timestamp > '${unixTimeMillisToString(start_date - 604800000)}' and 
                 ${snapshot_time != -1 ? `a.block_timestamp < '${unixTimeMillisToString(snapshot_time)}' and ` : ''}
@@ -166,7 +103,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries) =>
           group by
             address
         ) t
-        left join arbitrum.core.dim_labels l on t.address = l.address
+        left join ${chain}.core.dim_labels l on t.address = l.address
       where
         holding >= 1
       order by
@@ -175,7 +112,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries) =>
       ttlMinutes: 1
     };
     const result = await flipside.query.run(query)
-    return result.records
+    return { holders: result.records }
   } catch (e) {
     console.log(e, retries)
     if (retries > 5) {
@@ -189,7 +126,9 @@ const get_holders = async (token_address, start_date, snapshot_time, retries) =>
 }
 exports.get_holders = get_holders
 
-const get_contract_names = async (holders, retries) => {
+const get_contract_names = async (holders, retries, chain) => {
+  const alchemy_endpoint = process.env[`${chain.toUpperCase()}_ALCHEMY_API_URL`] + process.env.ALCHEMY_API_KEY
+  const web3 = new Web3(alchemy_endpoint)
   var byte_codes = []
 
   try {
@@ -215,7 +154,7 @@ const get_contract_names = async (holders, retries) => {
 }
 exports.get_contract_names = get_contract_names
 
-const update_is_contract_names = async (byte_codes, holders, retries) => {
+const update_is_contract_names = async (byte_codes, holders, retries, chain) => {
   try {
     var source_codes = []
     // do the api calls
@@ -224,8 +163,12 @@ const update_is_contract_names = async (byte_codes, holders, retries) => {
         holders[i].is_contract = false
         continue
       }
-      var query_str = `?module=contract&action=getsourcecode&address=${holders[i].address}&apikey=`
-      source_codes.push(await axios.get(arbiscan_url + query_str + arbiscan_key))
+      if (chain == 'arbitrum') {
+        var query_str = `?module=contract&action=getsourcecode&address=${holders[i].address}&apikey=`
+        source_codes.push(await axios.get(arbiscan_url + query_str + arbiscan_key))
+      } else if (chain == 'ethereum') {
+        
+      }
       await sleep(220)
     }
     // update the table
@@ -239,6 +182,8 @@ const update_is_contract_names = async (byte_codes, holders, retries) => {
       holders[i].is_contract = true
       j += 1
     }
+
+    return { holders: holders }
   } catch (e) {
     console.log(e)
     if (retries > 5) {
@@ -248,10 +193,38 @@ const update_is_contract_names = async (byte_codes, holders, retries) => {
     retries += 1
     return await update_is_contract_names(byte_codes, holders, retries)
   }
-  return holders
 }
 
 const get_holder_balances = async (holders, retries) => {
+  const alchemy_endpoint = process.env[`${chain.toUpperCase()}_ALCHEMY_API_URL`] + process.env.ALCHEMY_API_KEY
+  const web3 = new Web3(alchemy_endpoint)
+
+  const erc20_balance_checks = [
+    {
+      'symbol': 'USDC',
+      'address': '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
+      'contract': new web3.eth.Contract(
+        erc20_abi,
+        '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8'
+      )
+    },
+    {
+      'symbol': 'USDT',
+      'address': '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+      'contract': new web3.eth.Contract(
+        erc20_abi,
+        '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+      )
+    },
+    {
+      'symbol': 'WETH',
+      'address': '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
+      'contract': new web3.eth.Contract(
+        erc20_abi,
+        '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'
+      )
+    }
+  ]
   var eth_balances = {}
   var erc20_balances = {}
   try {
@@ -292,7 +265,7 @@ const get_holder_balances = async (holders, retries) => {
       }
       holders[i].wallet_value = usd_bal
     }
-    return holders
+    return { holders: holders }
   } catch (e) {
     console.log(e)
     if (retries > 5) {
@@ -463,7 +436,7 @@ const get_wallet_time_stats = async (holders, retries) => {
   try {
     let addresses_to_check = [];
     for (let h of holders) {
-      if (!h.is_contract) {
+      if (!h.address_name) {
         addresses_to_check.push(h.address);
       }
     }
@@ -499,7 +472,7 @@ const get_wallet_time_stats = async (holders, retries) => {
       }
     }
 
-    return holders;
+    return { holders: holders };
   } catch (e) {
     console.log(e);
     if (retries > 5) {
@@ -560,7 +533,7 @@ const get_early_alpha = async (holders, retries) => {
           let found = false;
           for (let k = 0; k < results.length; k++) {
             if (results[k].address === address) {
-              results[k].early_alpha.push({token_address: contractAddress, name: obj.name});
+              results[k].early_alpha.push({ token_address: contractAddress, name: obj.name });
               found = true;
               break;
             }
@@ -568,13 +541,13 @@ const get_early_alpha = async (holders, retries) => {
 
           // If the address isn't already in the results array, add it with the contract address as an early alpha
           if (!found) {
-            results.push({ address: address, early_alpha: [{token_address: contractAddress, name: obj.name}] });
+            results.push({ address: address, early_alpha: [{ token_address: contractAddress, name: obj.name }] });
           }
         }
       }
     }
 
-    return results;
+    return { holders: merge_holders(holders, results) };
   } catch (e) {
     console.log(e);
     if (retries > 5) {
