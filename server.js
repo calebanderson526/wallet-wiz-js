@@ -8,13 +8,13 @@ const app = express();
 app.use(cors())
 
 // Set up middleware to parse request bodies as JSON
-app.use(bodyParser.json());
+
 
 app.get('/', async (req, res) => {
     res.json({message: 'hi'})
 })
 
-app.use('/api/v1/:chain', wiz_router)
+app.use('/api/v1', wiz_router)
 
 // Start server
 app.listen(process.env.PORT ? process.env.PORT : 8081, () => {

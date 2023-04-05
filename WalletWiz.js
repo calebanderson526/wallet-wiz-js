@@ -1,9 +1,9 @@
 require('dotenv').config();
 const Web3 = require('web3');
 const { Flipside } = require("./@flipsidecrypto/sdk/dist/src");
-const erc20_abi = require("./erc20_abi.json");
+const erc20_abi = require("./static/erc20_abi.json");
 const axios = require('axios');
-const alphaTokens = require('./alpha_info_output.json')
+const alphaTokens = require('./static/alpha_info_output.json')
 const { merge_holders } = require('./middleware')
 
 
@@ -121,7 +121,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries, ch
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
     var tmp = retries + 1
     console.log(tmp)
-    return await get_holders(token_address, start_date, snapshot_time, tmp)
+    return await get_holders(token_address, start_date, snapshot_time, tmp, chain)
   }
 }
 exports.get_holders = get_holders
@@ -139,7 +139,7 @@ const get_contract_names = async (holders, retries, chain) => {
       await sleep(alchemy_time)
     }
 
-    return await update_is_contract_names(byte_codes, holders, 0)
+    return await update_is_contract_names(byte_codes, holders, 0, chain)
 
   } catch (e) {
 
@@ -149,7 +149,7 @@ const get_contract_names = async (holders, retries, chain) => {
     }
     retries += 1
     await sleep((Math.random() * 6) + (2 * retries) * 1000)
-    return await get_contract_names(holders, retries)
+    return await get_contract_names(holders, retries, chain)
   }
 }
 exports.get_contract_names = get_contract_names
@@ -195,7 +195,7 @@ const update_is_contract_names = async (byte_codes, holders, retries, chain) => 
   }
 }
 
-const get_holder_balances = async (holders, retries) => {
+const get_holder_balances = async (holders, retries, chain) => {
   const alchemy_endpoint = process.env[`${chain.toUpperCase()}_ALCHEMY_API_URL`] + process.env.ALCHEMY_API_KEY
   const web3 = new Web3(alchemy_endpoint)
 
@@ -265,7 +265,7 @@ const get_holder_balances = async (holders, retries) => {
       }
       holders[i].wallet_value = usd_bal
     }
-    return { holders: holders }
+    return { 'holders': holders }
   } catch (e) {
     console.log(e)
     if (retries > 5) {
@@ -275,7 +275,7 @@ const get_holder_balances = async (holders, retries) => {
     console.log(time_to_sleep)
     await sleep(time_to_sleep)
     retries += 1
-    return await get_holder_balances(holders, retries)
+    return await get_holder_balances(holders, retries, chain)
   }
 }
 exports.get_holder_balances = get_holder_balances
@@ -311,7 +311,7 @@ const get_common_rugs_and_apes = (token_to_holders, found_rugs, token_to_name) =
 }
 
 
-const get_holder_rug_vs_ape = async (holders, retries) => {
+const get_holder_rug_vs_ape = async (holders, retries, chain) => {
   try {
     var addresses_to_check = []
     for (let i = 0; i < holders.length; i++) {
@@ -427,12 +427,12 @@ const get_holder_rug_vs_ape = async (holders, retries) => {
     }
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
     retries += 1
-    return await get_holder_rug_vs_ape(holders, retries)
+    return await get_holder_rug_vs_ape(holders, retries, chain)
   }
 }
 exports.get_holder_rug_vs_ape = get_holder_rug_vs_ape
 
-const get_wallet_time_stats = async (holders, retries) => {
+const get_wallet_time_stats = async (holders, retries, chain) => {
   try {
     let addresses_to_check = [];
     for (let h of holders) {
@@ -480,13 +480,13 @@ const get_wallet_time_stats = async (holders, retries) => {
     }
     retries++;
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
-    return await get_wallet_time_stats(holders, retries);
+    return await get_wallet_time_stats(holders, retries, chain);
   }
 }
 
 exports.get_wallet_time_stats = get_wallet_time_stats
 
-const get_early_alpha = async (holders, retries) => {
+const get_early_alpha = async (holders, retries, chain) => {
   let results = [];
   try {
     const addressesToCheck = holders.filter(holder => !holder.is_contract && !holder.address_name).map(holder => holder.address);
@@ -555,7 +555,7 @@ const get_early_alpha = async (holders, retries) => {
     }
     retries++;
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
-    return await get_early_alpha(holders, retries);
+    return await get_early_alpha(holders, retries, chain);
   }
 }
 exports.get_early_alpha = get_early_alpha

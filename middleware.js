@@ -59,7 +59,7 @@ const create_request_log = async (
   exports.merge_holders = merge_holders
 
   const response_handler = async (req, res, body, start) => {
-    if (body.length === 0) {
+    if (body.holders.length === 0) {
         await handle_create_request_log(req, start, 400)
         res.status(400).json({ message: 'invalid request no data found' })
     } else if (body.err) {
@@ -76,8 +76,10 @@ const create_request_log = async (
   const check_chain = (req, res) => {
     var chain = req.params.chain
     if (chain != 'arbitrum' && chain != 'ethereum') {
-        res.status(400).json({message: 'Invalid chain'}).send()
+        res.status(400).json({message: 'Invalid chain ' + chain}).send()
+        return true
     }
+    return false
   }
 
   exports.check_chain = check_chain
