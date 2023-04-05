@@ -586,14 +586,14 @@ const get_common_funders = async (holders, retries, chain, timestamp) => {
       count(DISTINCT t.eth_to_address) as count,
       t.eth_from_address as funder
     FROM
-      arbitrum.core.ez_eth_transfers t
+      ${chain}.core.ez_eth_transfers t
       LEFT JOIN ${chain}.core.dim_labels dl ON dl.address = t.eth_from_address
       LEFT JOIN ${chain}.core.dim_contracts dc ON dc.address = t.eth_from_address
     WHERE
       t.eth_to_address IN (${addressesToCheck.map(token => `'${token}'`).join(', ')})
       AND (dc.name IS NULL AND dl.address_name IS NULL)
-      AND t.block_timestamp <= ${unixTimeMillisToString(timestamp)}
-      AND t.block_timestamp >= ${unixTimeMillisToString(timestamp - 1296000000000)}
+      AND t.block_timestamp <= '${unixTimeMillisToString(timestamp)}'
+      AND t.block_timestamp >= '${unixTimeMillisToString(timestamp - 1296000000)}'
     GROUP BY
       t.eth_from_address
     ORDER BY
@@ -604,7 +604,7 @@ const get_common_funders = async (holders, retries, chain, timestamp) => {
       ttlMinutes: 10
     }
     const results = await flipside.query.run(query)
-    if (!results.records.length) {
+    if (!results || !results.records.length) {
       return {holders: []}
     }
     return { common_funders:  results.records};
@@ -615,7 +615,7 @@ const get_common_funders = async (holders, retries, chain, timestamp) => {
     }
     retries++;
     await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
-    return await get_common_funders(holders, retries, chain);
+    return await get_common_funders(holders, retries, chain, timestamp);
   }
 }
 

@@ -14,9 +14,9 @@ async function run() {
     //     "body": "{\"address\": \"0x73eD68B834e44096eB4beA6eDeAD038c945722F1\"}"
     // })
     // 1676632855000
-    const result = await get_holders('0xa0eeBB0E5C3859a1c5412C2380c074f2f6725e2E', 1670632855000, -1, 0, 'arbitrum')
+    const result = await get_holders('0xa0eeBB0E5C3859a1c5412C2380c074f2f6725e2E', 1671632855000, -1, 0, 'arbitrum')
     console.log('get holders')
-    const result2 = await get_common_funders(result, 0, 'arbitrum', 1670632855000)
+    const result2 = await get_common_funders(result.holders, 0, 'arbitrum', 1671632855000)
     console.log('get_common_funders')
     // const result3 = await get_contract_names(result)
     // const result2 = await get_early_alpha(result3)

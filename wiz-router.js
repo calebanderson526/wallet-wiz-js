@@ -87,7 +87,7 @@ router.post('/:chain/timestamp-to-block', async (req, res) => {
     await response_handler(req, res, block_number, start)
 })
 
-router.post('/:chain/commmon-funders', async (req, res) => {
+router.post('/:chain/common-funders', async (req, res) => {
     if (check_chain(req, res)) {
         return
     }
