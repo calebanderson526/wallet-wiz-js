@@ -9,10 +9,13 @@ const {
     get_holder_rug_vs_ape, 
     get_holders, 
     get_wallet_time_stats,
-    get_early_alpha
+    get_early_alpha,
+    timestamp_to_block,
+    get_common_funders
 } = require('./WalletWiz');
 
-const { response_handler, check_chain } = require('./middleware')
+const { response_handler, check_chain } = require('./middleware');
+const { ReturnConsumedCapacity } = require("@aws-sdk/client-dynamodb");
 
 router.post('/:chain/holders', async (req, res) => {
     if(check_chain(req, res)) {
@@ -73,5 +76,25 @@ router.post('/:chain/early-alpha', async (req, res) => {
     var early_alpha = await get_early_alpha(holders, 0, req.params.chain)
     await response_handler(req, res, early_alpha, start)
 });
+
+router.post('/:chain/timestamp-to-block', async (req, res) => {
+    if (check_chain(req, res)) {
+        return
+    }
+    var start = new Date()
+    const { timestamp } = req.body;
+    var block_number = await timestamp_to_block(timestamp, chain, 0)
+    await response_handler(req, res, block_number, start)
+})
+
+router.post('/:chain/commmon-funders', async (req, res) => {
+    if (check_chain(req, res)) {
+        return
+    }
+    var start = new Date()
+    const { holders, timestamp } = req.body
+    var common_funders = await get_common_funders(holders, 0, req.params.chain, timestamp)
+    await response_handler(req, res, common_funders, start)
+})
 
 module.exports = router
