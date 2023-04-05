@@ -59,7 +59,7 @@ const create_request_log = async (
   exports.merge_holders = merge_holders
 
   const response_handler = async (req, res, body, start) => {
-    if (body.holders.length === 0) {
+    if (body.holders && body.holders.length === 0) {
         await handle_create_request_log(req, start, 400)
         res.status(400).json({ message: 'invalid request no data found' })
     } else if (body.err) {

@@ -6,7 +6,6 @@ const axios = require('axios');
 const alphaTokens = require('./static/alpha_info_output.json')
 const { merge_holders } = require('./middleware')
 
-
 const flipside = new Flipside(
   process.env.FLIPSIDE_API_KEY,
   "https://node-api.flipsidecrypto.com"
@@ -37,8 +36,45 @@ function unixTimeMillisToString(timestamp_ms) {
   return dateString;
 }
 
+const timestamp_to_block = async (timestamp, chain, retries) => {
+  try {
+    const query = {
+      sql: `
+        SELECT
+        top 1
+          block_number
+        FROM
+          ${chain}.core.fact_blocks
+        ORDER BY
+          ABS(datediff(second, block_timestamp, '2021-02-17 06:20:55.000'))
+      `,
+      ttlMinutes:10
+    }
+    const result = await flipside.query.run(query)
+    return {block_number: result.records[0].BLOCK_NUMBER}
+  } catch (e) {
+    console.log(e, retries)
+    if (retries > 5) {
+      return { err: e }
+    }
+    await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
+    var tmp = retries + 1
+    return await timestamp_to_block(timestamp, chain, tmp)
+  }
+}
+
+exports.timestamp_to_block = timestamp_to_block
+
 const get_holders = async (token_address, start_date, snapshot_time, retries, chain) => {
   try {
+    var total_supply_time = snapshot_time == -1 ? start_date : snapshot_time
+    var total_supply_block = await timestamp_to_block(unixTimeMillisToString(total_supply_time), chain, 0)
+    if (total_supply_block.err) return total_supply_block
+    const alchemy_endpoint = process.env[`${chain.toUpperCase()}_ALCHEMY_API_URL`] + process.env.ALCHEMY_API_KEY
+    const web3 = new Web3(alchemy_endpoint)
+    const token_contract = await new web3.eth.Contract(erc20_abi, token_address)
+    const total_supply = await token_contract.methods.totalSupply().call({}, total_supply_block.block)
+
     const query = {
       sql: `
       select top 50
@@ -54,17 +90,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries, ch
             (
               select
                 sum(
-                  RAW_AMOUNT / concat(
-                    '1e',
-                    (
-                      select
-                        decimals
-                      from
-                        ${chain}.core.dim_contracts c
-                      where
-                        c.address = LOWER('${token_address}')
-                    )
-                  )
+                  RAW_AMOUNT
                 ) as total,
                 TO_ADDRESS as address
               from
@@ -78,17 +104,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries, ch
               union all
               select
                 - sum(
-                  RAW_AMOUNT / concat(
-                    '1e',
-                    (
-                      select
-                        decimals
-                      from
-                       ${chain}.core.dim_contracts c
-                      where
-                        c.address = LOWER('${token_address}')
-                    )
-                  )
+                  RAW_AMOUNT
                 ) as total,
                 FROM_ADDRESS as address
               from
@@ -112,7 +128,8 @@ const get_holders = async (token_address, start_date, snapshot_time, retries, ch
       ttlMinutes: 1
     };
     const result = await flipside.query.run(query)
-    return { holders: result.records }
+    const res = result.records.map(h => {h.holding = h.holding / total_supply; return h})
+    return { holders: res }
   } catch (e) {
     console.log(e, retries)
     if (retries > 5) {
@@ -559,3 +576,47 @@ const get_early_alpha = async (holders, retries, chain) => {
   }
 }
 exports.get_early_alpha = get_early_alpha
+
+const get_common_funders = async (holders, retries, chain, timestamp) => {
+  try {
+    const addressesToCheck = holders.filter(holder => !holder.is_contract && !holder.address_name).map(holder => holder.address);
+    sql = `
+    SELECT DISTINCT
+      top 20
+      count(DISTINCT t.eth_to_address) as count,
+      t.eth_from_address as funder
+    FROM
+      arbitrum.core.ez_eth_transfers t
+      LEFT JOIN ${chain}.core.dim_labels dl ON dl.address = t.eth_from_address
+      LEFT JOIN ${chain}.core.dim_contracts dc ON dc.address = t.eth_from_address
+    WHERE
+      t.eth_to_address IN (${addressesToCheck.map(token => `'${token}'`).join(', ')})
+      AND (dc.name IS NULL AND dl.address_name IS NULL)
+      AND t.block_timestamp <= ${unixTimeMillisToString(timestamp)}
+      AND t.block_timestamp >= ${unixTimeMillisToString(timestamp - 1296000000000)}
+    GROUP BY
+      t.eth_from_address
+    ORDER BY
+      count(DISTINCT t.eth_to_address) desc
+    `
+    const query = {
+      sql: sql,
+      ttlMinutes: 10
+    }
+    const results = await flipside.query.run(query)
+    if (!results.records.length) {
+      return {holders: []}
+    }
+    return { common_funders:  results.records};
+  } catch (e) {
+    console.log(e);
+    if (retries > 5) {
+      return { err: e }
+    }
+    retries++;
+    await sleep(((Math.random() * 6) + (2 * retries)) * 1000)
+    return await get_common_funders(holders, retries, chain);
+  }
+}
+
+exports.get_common_funders = get_common_funders
