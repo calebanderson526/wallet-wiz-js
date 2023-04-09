@@ -3,7 +3,8 @@ const Web3 = require('web3');
 const { Flipside } = require("./@flipsidecrypto/sdk/dist/src");
 const erc20_abi = require("./static/erc20_abi.json");
 const axios = require('axios');
-const alphaTokens = require('./static/alpha_info_output.json')
+const eth_token_data = require('./static/eth-wiz-rug-data-current.json')
+const arb_token_data = require('./static/arb-wiz-token-data-current.json')
 const { merge_holders } = require('./middleware')
 
 const flipside = new Flipside(
@@ -12,12 +13,14 @@ const flipside = new Flipside(
 )
 const arbiscan_url = process.env.ARBISCAN_API_URL
 const arbiscan_key = process.env.ARBISCAN_API_KEY
+const etherscan_url = process.env.ETHERSCAN_API_URL
+const etherscan_key = process.env.ETHERSCAN_API_KEY
 const alchemy_time = 40
 
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-function unixTimeMillisToString(timestamp_ms) {
+function unixTimeToString(timestamp_ms) {
 
   // Use the Date constructor to convert the timestamp to a Date object
   const date = new Date(timestamp_ms);
@@ -48,10 +51,10 @@ const timestamp_to_block = async (timestamp, chain, retries) => {
         ORDER BY
           ABS(datediff(second, block_timestamp, '2021-02-17 06:20:55.000'))
       `,
-      ttlMinutes:10
+      ttlMinutes: 10
     }
     const result = await flipside.query.run(query)
-    return {block_number: result.records[0].BLOCK_NUMBER}
+    return { block_number: result.records[0].BLOCK_NUMBER }
   } catch (e) {
     console.log(e, retries)
     if (retries > 5) {
@@ -68,7 +71,7 @@ exports.timestamp_to_block = timestamp_to_block
 const get_holders = async (token_address, start_date, snapshot_time, retries, chain) => {
   try {
     var total_supply_time = snapshot_time == -1 ? start_date : snapshot_time
-    var total_supply_block = await timestamp_to_block(unixTimeMillisToString(total_supply_time), chain, 0)
+    var total_supply_block = await timestamp_to_block(unixTimeToString(total_supply_time), chain, 0)
     if (total_supply_block.err) return total_supply_block
     const alchemy_endpoint = process.env[`${chain.toUpperCase()}_ALCHEMY_API_URL`] + process.env.ALCHEMY_API_KEY
     const web3 = new Web3(alchemy_endpoint)
@@ -96,8 +99,8 @@ const get_holders = async (token_address, start_date, snapshot_time, retries, ch
               from
                 ${chain}.core.fact_token_transfers a
               where
-                a.block_timestamp > '${unixTimeMillisToString(start_date - 604800000)}' and 
-                ${snapshot_time != -1 ? `a.block_timestamp < '${unixTimeMillisToString(snapshot_time)}' and ` : ''}
+                a.block_timestamp > '${unixTimeToString(start_date - 604800000)}' and 
+                ${snapshot_time != -1 ? `a.block_timestamp < '${unixTimeToString(snapshot_time)}' and ` : ''}
                 a.contract_address = LOWER('${token_address}')
               group by
                 2
@@ -110,8 +113,8 @@ const get_holders = async (token_address, start_date, snapshot_time, retries, ch
               from
                 ${chain}.core.fact_token_transfers a
               where
-                a.block_timestamp > '${unixTimeMillisToString(start_date - 604800000)}' and 
-                ${snapshot_time != -1 ? `a.block_timestamp < '${unixTimeMillisToString(snapshot_time)}' and ` : ''}
+                a.block_timestamp > '${unixTimeToString(start_date - 604800000)}' and 
+                ${snapshot_time != -1 ? `a.block_timestamp < '${unixTimeToString(snapshot_time)}' and ` : ''}
                 a.contract_address = LOWER('${token_address}')
               group by
                 2
@@ -128,7 +131,7 @@ const get_holders = async (token_address, start_date, snapshot_time, retries, ch
       ttlMinutes: 1
     };
     const result = await flipside.query.run(query)
-    const res = result.records.map(h => {h.holding = h.holding / total_supply; return h})
+    const res = result.records.map(h => { h.holding = h.holding / total_supply; return h })
     return { holders: res }
   } catch (e) {
     console.log(e, retries)
@@ -184,7 +187,8 @@ const update_is_contract_names = async (byte_codes, holders, retries, chain) => 
         var query_str = `?module=contract&action=getsourcecode&address=${holders[i].address}&apikey=`
         source_codes.push(await axios.get(arbiscan_url + query_str + arbiscan_key))
       } else if (chain == 'ethereum') {
-        
+        var query_str = `?module=contract&action=getsourcecode&address=${holders[i].address}&apikey=`
+        source_codes.push(await axios.get(etherscan_url + query_str + etherscan_key))
       }
       await sleep(220)
     }
@@ -344,8 +348,8 @@ const get_holder_rug_vs_ape = async (holders, retries, chain) => {
       contract_address,
       d.name
     FROM
-      arbitrum.core.fact_token_transfers
-      left join arbitrum.core.dim_contracts d on contract_address = d.address
+      ${chain}.core.fact_token_transfers
+      left join ${chain}.core.dim_contracts d on contract_address = d.address
     WHERE
       from_address IN (
         ${addr_str}
@@ -383,24 +387,31 @@ const get_holder_rug_vs_ape = async (holders, retries, chain) => {
     var token_str = tokens_with_quotes.join(',')
     console.log('done with 1st rug vs ape query')
 
-    var sql2 = `
+
+    if (chain == 'arbitrum') {
+      var sql2 = `
       SELECT
-        a.contract_address
+        a.contract_address as token_address
       FROM
-        arbitrum.core.fact_token_transfers a
+        ${chain}.core.fact_token_transfers a
       WHERE
         a.contract_address in (${token_str})
         and datediff(hour, a.block_timestamp, getDate()) < 12
     `
-    const query2 = {
-      sql: sql2,
-      ttlMinutes: 10
+      const query2 = {
+        sql: sql2,
+        ttlMinutes: 10
+      }
+      var rug_query_result = await flipside.query.run(query2)
+      var token_data = rug_query_result.records
+    } else if (chain == 'ethereum') {
+      var token_data = eth_token_data.filter((token) => token.is_rug)
     }
-    var query_result2 = await flipside.query.run(query2)
+
     var found_rugs = []
     for (let token of unique_tokens) {
-      var test = query_result2.records.find(x => x.contract_address == token)
-      if (!test) {
+      var test = token_data.find(x => x.token_address == token)
+      if ((test && chain == 'ethereum') || (!test && chain == 'arbitrum')) {
         found_rugs.push(token)
         for (let h of token_to_holders[token]) {
           holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;
@@ -431,10 +442,12 @@ const get_holder_rug_vs_ape = async (holders, retries, chain) => {
     }
 
     var common_rugs_and_apes = get_common_rugs_and_apes(token_to_holders, found_rugs, token_to_name)
+    var rug_length = common_rugs_and_apes.rugs.length
+    var ape_length = common_rugs_and_apes.apes.length
     return {
       'holders': holders,
-      'common_rugs': common_rugs_and_apes.rugs,
-      'common_apes': common_rugs_and_apes.apes
+      'common_rugs': common_rugs_and_apes.rugs.slice(0, rug_length > 50 ? 50 : rug_length),
+      'common_apes': common_rugs_and_apes.apes.slice(0, ape_length > 50 ? 50 : ape_length)
     };
 
   } catch (e) {
@@ -466,7 +479,7 @@ const get_wallet_time_stats = async (holders, retries, chain) => {
               datediff(day, first_tx, last_tx) as wallet_age,
               datediff(hour, first_tx, last_tx) / tx_count as avg_time
             from
-              arbitrum.core.fact_transactions txs
+              ${chain}.core.fact_transactions txs
             WHERE
               txs.from_address in (${addresses_to_check.map(a => `'${a}'`).join(', ')})
             group by
@@ -506,6 +519,11 @@ exports.get_wallet_time_stats = get_wallet_time_stats
 const get_early_alpha = async (holders, retries, chain) => {
   let results = [];
   try {
+    if (chain == 'arbitrum') {
+      var token_data = arb_token_data
+    } else if (chain == 'ethereum') {
+      var token_data = eth_token_data
+    }
     const addressesToCheck = holders.filter(holder => !holder.is_contract && !holder.address_name).map(holder => holder.address);
     let sql = `
       SELECT
@@ -513,7 +531,7 @@ const get_early_alpha = async (holders, retries, chain) => {
         contract_address,
         min(block_timestamp) as first_time
       FROM
-        arbitrum.core.fact_token_transfers
+        ${chain}.core.fact_token_transfers
       WHERE
         to_address IN (
           ${addressesToCheck.map(token => `'${token}'`).join(', ')}
@@ -528,6 +546,7 @@ const get_early_alpha = async (holders, retries, chain) => {
     }
     var query_result = await flipside.query.run(query)
     var queryResult = query_result.records
+    console.log(queryResult.length)
 
     // Iterate over each row in the query result
     for (let i = 0; i < queryResult.length; i++) {
@@ -538,14 +557,18 @@ const get_early_alpha = async (holders, retries, chain) => {
       firstTime = firstTime.getTime() / 1000
 
       // Iterate over each object in the JSON array
-      for (let j = 0; j < alphaTokens.length; j++) {
-        let obj = alphaTokens[j];
-        let id = obj.id;
-        let timeAt = obj.time_at;
+      for (let j = 0; j < token_data.length; j++) {
+        let obj = token_data[j];
+        if (chain == 'ethereum' && !obj.is_alpha) {
+          continue
+        }
+        let id = obj.token_address;
+        let timeAt = (new Date(obj.first_pool)).getTime() / 1000;
 
         // Check if the contract address is in the JSON array and the first time is within 1 week of time_at
         //  && firstTime <= timeAt + (604800 * 10)
-        if (contractAddress == id && firstTime <= timeAt + (604800)) {
+        var six_hours_in_seconds = 21600
+        if (contractAddress == id && firstTime <= timeAt + (six_hours_in_seconds)) {
           // Check if this address is already in the results array
           let found = false;
           for (let k = 0; k < results.length; k++) {
@@ -592,8 +615,8 @@ const get_common_funders = async (holders, retries, chain, timestamp) => {
     WHERE
       t.eth_to_address IN (${addressesToCheck.map(token => `'${token}'`).join(', ')})
       AND (dc.name IS NULL AND dl.address_name IS NULL)
-      AND t.block_timestamp <= '${unixTimeMillisToString(timestamp)}'
-      AND t.block_timestamp >= '${unixTimeMillisToString(timestamp - 1296000000)}'
+      AND t.block_timestamp <= '${unixTimeToString(timestamp)}'
+      AND t.block_timestamp >= '${unixTimeToString(timestamp - 1296000000)}'
     GROUP BY
       t.eth_from_address
     ORDER BY
@@ -605,9 +628,9 @@ const get_common_funders = async (holders, retries, chain, timestamp) => {
     }
     const results = await flipside.query.run(query)
     if (!results || !results.records.length) {
-      return {holders: []}
+      return { holders: [] }
     }
-    return { common_funders:  results.records};
+    return { common_funders: results.records };
   } catch (e) {
     console.log(e);
     if (retries > 5) {
