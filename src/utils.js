@@ -4,6 +4,7 @@ const flipside = new Flipside(
     "https://node-api.flipsidecrypto.com"
 )
 
+// helper to convert unix time to string YYYY-MM-DD HH:mm:SS.ms
 const unixTimeToString = (timestamp_ms) => {
 
     // Use the Date constructor to convert the timestamp to a Date object
@@ -25,6 +26,7 @@ const unixTimeToString = (timestamp_ms) => {
 
 exports.unixTimeToString = unixTimeToString
 
+// get the closest block number to a timestamp on a chain
 const timestamp_to_block = async (timestamp, chain, retries) => {
     try {
         const query = {

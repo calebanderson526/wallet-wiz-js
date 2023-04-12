@@ -9,6 +9,14 @@ const flipside = new Flipside(
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+/*
+  Computes aggregates for each holder [{address: string}]
+    - first transaction time
+    - last transaction time
+    - number of transactions
+    - average time between transactions
+    - age of wallet
+*/
 const walletTimeStats = async (holders, retries, chain) => {
     try {
       let addresses_to_check = [];
@@ -39,6 +47,8 @@ const walletTimeStats = async (holders, retries, chain) => {
         timeoutMinutes: 2
       }
       var query_result = await flipside.query.run(query)
+
+      // mutate the holders parameter to then return
       for (let r of query_result.records) {
         for (let i = 0; i < holders.length; i++) {
           let h = holders[i];

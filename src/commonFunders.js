@@ -12,6 +12,11 @@ var web3;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+/*
+  Given a list of holders, a chain, and a timestamp,
+  get the wallets that have funded the holders with eth within the past month
+  returns array of funders and how many holders they funded
+*/
 const commonFunders = async (holders, retries, chain, timestamp) => {
   try {
     const addressesToCheck = holders.filter(holder => !holder.is_contract && !holder.address_name).map(holder => holder.address);
@@ -50,10 +55,12 @@ const commonFunders = async (holders, retries, chain, timestamp) => {
     // use multicall contract to check multiple addresses at onces
     const contract = await new web3.eth.Contract(wiz_abi, process.env[`${chain.toUpperCase()}_WALLET_WIZ_ADDRESS`])
 
+    // we do this to remove the contracts from the 'funders' list
     const is_contract = await contract.methods.multiIsContract(
       results.records.map((h) => h.funder)
     ).call()
 
+    // mutate holders list
     var nonContractFunders = []
     for (let i = 0; i < is_contract.length; i++) {
       if (!is_contract[i]) {

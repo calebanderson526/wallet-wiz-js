@@ -11,7 +11,13 @@ const flipside = new Flipside(
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-
+/*
+  Given a map of token => addresses that hold them,
+  and a list of 'found rugs'
+    - return how many times a holder has bough each token 
+    - group by rugs vs apes
+    - sort each list
+*/
 const commonRugsAndApes = (token_to_holders, found_rugs, token_to_name) => {
     const tokenKeys = Object.keys(token_to_holders);
   
@@ -42,6 +48,11 @@ const commonRugsAndApes = (token_to_holders, found_rugs, token_to_name) => {
     };
   }
 
+/*
+  Get all the tokens each holder has transfered out of their account
+  compare that to our list of rug tokens
+  return each holders rug and ape count, as well as a list of common rugs and apes
+*/
 const rugVsApe = async (holders, retries, chain) => {
     try {
       var addresses_to_check = []
@@ -52,6 +63,7 @@ const rugVsApe = async (holders, retries, chain) => {
       }
       var addr_with_quotes = addresses_to_check.map(addr => `'${addr}'`)
       var addr_str = addr_with_quotes.join(',')
+      // query flipside for all the 'apes'
       var sql = `
       SELECT
         from_address AS address,
@@ -81,7 +93,10 @@ const rugVsApe = async (holders, retries, chain) => {
       let token_to_holders = {};
       let token_to_name = {}
       let unique_tokens = [];
-  
+      
+      // find all the unique tokens
+      // create a mapping of token => holder
+      // create a mapping of holder => ape count
       for (let row of query_result.records) {
         if (!unique_tokens.includes(row['contract_address'])) {
           unique_tokens.push(row['contract_address']);
@@ -93,10 +108,7 @@ const rugVsApe = async (holders, retries, chain) => {
         holder_to_ape_count[row['address']] = (holder_to_ape_count[row['address']] || 0) + 1;
         token_to_name[row['contract_address']] = row.name
       }
-  
-      var tokens_with_quotes = unique_tokens.map(token => `'${token}'`)
-      var token_str = tokens_with_quotes.join(',')
-      console.log('done with 1st rug vs ape query')
+      console.log('done with rug vs ape query')
   
   
       if (chain == 'arbitrum') {
@@ -104,7 +116,9 @@ const rugVsApe = async (holders, retries, chain) => {
       } else if (chain == 'ethereum') {
         var token_data = eth_token_data.filter((token) => token.is_rug)
       }
-  
+      
+      // if the 'ape' is found as a rug, add it to found_rugs
+      // also create a mapping of holder => rug count
       var found_rugs = []
       for (let token of unique_tokens) {
         var test = token_data.find(x => x.token_address.toLowerCase() == token)
@@ -115,7 +129,8 @@ const rugVsApe = async (holders, retries, chain) => {
           }
         }
       }
-  
+      
+      // mutate the holders parameter for their ape count
       for (let i = 0; i < holders.length; i++) {
         for (let ha in holder_to_ape_count) {
           if (ha === holders[i]['address']) {
@@ -123,7 +138,8 @@ const rugVsApe = async (holders, retries, chain) => {
           }
         }
       }
-  
+
+      // mutate holders list for rug count
       for (let i = 0; i < holders.length; i++) {
         for (let ha in holder_to_rug_count) {
           if (ha === holders[i]['address']) {
@@ -137,7 +153,8 @@ const rugVsApe = async (holders, retries, chain) => {
           holders[i]['ape_count'] = 0;
         }
       }
-  
+      
+      // get common rugs and apes
       var common_rugs_and_apes = commonRugsAndApes(token_to_holders, found_rugs, token_to_name)
       var rug_length = common_rugs_and_apes.rugs.length
       var ape_length = common_rugs_and_apes.apes.length

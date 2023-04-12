@@ -42,6 +42,8 @@ const top50Holders = async (token_address, from_block, to_block, retries, chain)
     await sleep(wait_time)
     return retries >= 5 ? transfers : await top50Holders(token_address, from_block, to_block, retries + 1, chain)
   }
+
+  // keep getting the transfers until we have all of them, up until the current block
   while (transfers[1] != to_block) {
     var wait_time = (alchemy_time * 5) - ((new Date()).getTime() - start.getTime())
     await sleep(wait_time > 0 ? wait_time : 0)
@@ -63,11 +65,14 @@ const top50Holders = async (token_address, from_block, to_block, retries, chain)
     }
     transfers[1] = newTransfers[1]
   }
+
+  // calculate holdings from transfers
   var holdings = calculate_holdings(transfers[0]);
   for (let i = 0; i < holdings.length; i++) {
     holdings[i].holding = holdings[i].holding / total_supply
   }
 
+  // gets address labels from flipside
   var result = await handleGetLabels(holdings.slice(0, 50), 0, chain)
   return result
 }
@@ -107,6 +112,7 @@ const handleGetTransfers = async (token_address, from_block, to_block) => {
 /*
     After fetching holders and balances we query flipside to get labels
     This gives us detection for things like hot wallets
+    holdings = [{address: string}]
 */
 const handleGetLabels = async (holdings, retries, chain) => {
 

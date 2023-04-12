@@ -12,6 +12,11 @@ const flipside = new Flipside(
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+
+/*
+  Given a list of holders [{address: string}], 
+  find the tokens they bought early that ended up being alpha
+*/
 const earlyAlpha = async (holders, retries, chain) => {
     let results = [];
     try {
@@ -21,6 +26,8 @@ const earlyAlpha = async (holders, retries, chain) => {
         var token_data = eth_token_data
       }
       const addressesToCheck = holders.filter(holder => !holder.is_contract && !holder.address_name).map(holder => holder.address);
+
+      // get the tokens each address has had, as well as the earliest they had them
       let sql = `
         SELECT
           to_address AS address,
@@ -61,7 +68,7 @@ const earlyAlpha = async (holders, retries, chain) => {
           let id = obj.token_address;
           let timeAt = (new Date(obj.first_pool)).getTime() / 1000;
   
-          // Check if the contract address is in the JSON array and the first time is within 1 week of time_at
+          // Check if the contract address is in the JSON array and the first time is within 6 hours of time_at
           //  && firstTime <= timeAt + (604800 * 10)
           var six_hours_in_seconds = 21600
           if (contractAddress == id && firstTime <= timeAt + (six_hours_in_seconds)) {

@@ -1,5 +1,9 @@
 const { DynamoDBClient, PutItemCommand } = require("@aws-sdk/client-dynamodb");
 
+/*
+  Helper for formulating create_request_log params
+  also logs to console the response time
+*/
 const handle_create_request_log = async (req, start, code) => {
     console.log(`${req.method + req.path} response time: ${(new Date()).getTime() - start.getTime()}`)
     await create_request_log(
@@ -10,6 +14,10 @@ const handle_create_request_log = async (req, start, code) => {
     )
 }
 
+
+/*
+  Create a request log in aws dynamodb for each request to the backend
+*/
 const create_request_log = async (
     method,
     route,
@@ -46,6 +54,10 @@ const create_request_log = async (
 
   exports.handle_create_request_log = handle_create_request_log
 
+  /*
+    Merges two lists of holders together joined on .address
+    assumes the 1st list is the longer one
+  */
   const merge_holders = (holders1, holders2) => {
     var merged = [];
     for (let i = 0; i < holders1.length; i++) {
@@ -58,6 +70,9 @@ const create_request_log = async (
   }
   exports.merge_holders = merge_holders
 
+  /*
+    Handle sending the response to the user, and creating a log
+  */
   const response_handler = async (req, res, body, start) => {
     if (body.holders && body.holders.length === 0) {
         await handle_create_request_log(req, start, 400)
@@ -73,6 +88,9 @@ const create_request_log = async (
 
   exports.response_handler = response_handler
 
+  /*
+    Makes sure the chain param is valid
+  */
   const check_chain = (req, res) => {
     var chain = req.params.chain
     if (chain != 'arbitrum' && chain != 'ethereum') {

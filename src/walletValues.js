@@ -49,13 +49,14 @@ const walletValues = async (holders, retries, chain, block) => {
 
         const multicaller_contract = await new web3.eth.Contract(multicaller_abi, multicaller_address)
 
-        // TODO need to use addresses for the correct chain here
+        // construct necessary contracts
         const usdc_contract = new web3.eth.Contract(erc20abi, erc20_balance_checks[0][`${chain}_address`])
         const usdt_contract = new web3.eth.Contract(erc20abi, erc20_balance_checks[1][`${chain}_address`])
         const weth_contract = new web3.eth.Contract(erc20abi, erc20_balance_checks[2][`${chain}_address`])
 
         var calls = []
 
+        // create the calls
         for (let i = 0; i < holders.length; i++) {
             calls.push(usdc_contract.methods.balanceOf(holders[i].address))
             calls.push(usdt_contract.methods.balanceOf(holders[i].address))
@@ -69,6 +70,8 @@ const walletValues = async (holders, retries, chain, block) => {
         var query_str = '?module=stats&action=ethprice&apikey='
         var eth_price = await axios.get(`${arbiscan_url}${query_str}${arbiscan_key}`)
 
+        // call multicall
+        // we need to formulate evm call data in order to use multicall so we use .encodeABI()
         const result = await multicaller_contract.methods.aggregate(calls.map((call) => {
             const callData = call.encodeABI();
             return {
@@ -78,6 +81,9 @@ const walletValues = async (holders, retries, chain, block) => {
         })).call()
         var ethusd = eth_price.data.result.ethusd
 
+        // call results are returned in an array with length of (number of token balances checked * number of accounts checked)
+        // array is one dimensional
+        // convert the call results to usd and mutate the holders list
         for (let i = 0; i < result.returnData.length; i += 4) {
             var cur_value = 0
             cur_value += result.returnData[i+0] / (10 ** 6)
