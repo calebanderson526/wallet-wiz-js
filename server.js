@@ -7,11 +7,9 @@ const app = express();
 
 app.use(cors())
 
-// Set up middleware to parse request bodies as JSON
-
 
 app.get('/', async (req, res) => {
-    res.json({message: 'hi'})
+    res.json({message: 'the server is online'})
 })
 
 app.use('/api/v1', wiz_router)
