@@ -209,7 +209,8 @@ const flipsideTop50Holders = async (token_address, from_block, to_block, retries
           order by
             holding desc
           `,
-      ttlMinutes: 10
+      ttlMinutes: 10,
+      timeoutMinutes: 2
     };
     const result = await flipside.query.run(query)
     for (let i = 0; i < (result.records ? result.records.length : 0); i++) {

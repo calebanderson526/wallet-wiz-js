@@ -38,9 +38,9 @@ const contractNames = async (holders, retries, chain) => {
                 if (name.err) {
                     return { err: name.err }
                 }
-                holders[i].address_name = await handleGetContractName(holders[i].address, 0, chain)
-                var wait_time = 220 - ((new Date()).getTime() - start.getTime())
-                await sleep(220)
+                holders[i].address_name = name
+                var wait_time = 250 - ((new Date()).getTime() - start.getTime())
+                await sleep(wait_time > 0 ? wait_time : 0)
             }
         }
         return { holders: holders }

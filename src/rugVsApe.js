@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { Flipside } = require("../@flipsidecrypto/sdk/dist/src");
-const eth_token_data = require('../static/eth-wiz-rug-data-current.json')
+const eth_token_data = require('../static/eth-wiz-data-COMPLETE.json')
+const arb_token_data = require('../static/arb-wiz-data-COMPLETE.json')
 
 const flipside = new Flipside(
   process.env.FLIPSIDE_API_KEY,
@@ -72,7 +73,7 @@ const rugVsApe = async (holders, retries, chain) => {
       const query = {
         sql: sql,
         ttlMinutes: 10,
-        timeoutMinutes: 4
+        timeoutMinutes: 2
       }
       var query_result = await flipside.query.run(query)
       let holder_to_rug_count = {};
@@ -99,30 +100,15 @@ const rugVsApe = async (holders, retries, chain) => {
   
   
       if (chain == 'arbitrum') {
-        var sql2 = `
-        SELECT
-          a.contract_address as token_address
-        FROM
-          ${chain}.core.fact_token_transfers a
-        WHERE
-          a.contract_address in (${token_str})
-          and datediff(hour, a.block_timestamp, getDate()) < 12
-      `
-        const query2 = {
-          sql: sql2,
-          ttlMinutes: 10,
-          timeoutMinutes: 2
-        }
-        var rug_query_result = await flipside.query.run(query2)
-        var token_data = rug_query_result.records
+        var token_data = arb_token_data.filter((token) => token.is_rug)
       } else if (chain == 'ethereum') {
         var token_data = eth_token_data.filter((token) => token.is_rug)
       }
   
       var found_rugs = []
       for (let token of unique_tokens) {
-        var test = token_data.find(x => x.token_address == token)
-        if ((test && chain == 'ethereum') || (!test && chain == 'arbitrum')) {
+        var test = token_data.find(x => x.token_address.toLowerCase() == token)
+        if (test) {
           found_rugs.push(token)
           for (let h of token_to_holders[token]) {
             holder_to_rug_count[h] = (holder_to_rug_count[h] || 0) + 1;

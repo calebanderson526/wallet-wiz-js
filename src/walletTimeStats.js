@@ -36,7 +36,7 @@ const walletTimeStats = async (holders, retries, chain) => {
       const query = {
         sql: sql,
         ttlMinutes: 10,
-        timeoutMinutes: 5
+        timeoutMinutes: 2
       }
       var query_result = await flipside.query.run(query)
       for (let r of query_result.records) {
