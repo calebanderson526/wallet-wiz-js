@@ -45,8 +45,8 @@ const commonFunders = async (holders, retries, chain, timestamp) => {
       timeoutMinutes: 2
     }
     const results = await flipside.query.run(query)
-    if (!results || !results.records.length) {
-      return { holders: [] }
+    if (!results.records || !results.records.length) {
+      return { common_funders: [] }
     }
 
     // change the global web3 object to the correct chain
