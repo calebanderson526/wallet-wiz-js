@@ -4,6 +4,7 @@ const {rugVsApe} = require('./rugVsApe')
 const {top50Holders} = require('./top50Holders')
 const {walletTimeStats} = require('./walletTimeStats')
 const {commonFunders} = require('./commonFunders')
+const {unixTimeToString} = require('./utils')
 
 /*
     Helper to calculate average of an array of numbers
@@ -38,29 +39,29 @@ async function handleTest(message, retries) {
         
         // Calculate Averages
         var avgHolding = Number(calculateAverage((holders.holders).map(r => r.holding)) * 100).toFixed(3) + ' %'
-        var avgValue = '$' + Number(calculateAverage((await holderBalances).holders.map(r => r.wallet_value ? r.wallet_value : 0))).toFixed(2)
+        var avgValue = '$' + Number(calculateAverage((await holderBalances).holders.map(r => r.wallet_value && !r.address_name && r.address != '0x000000000000000000000000000000000000dead'  ? r.wallet_value : 0))).toFixed(2)
         var avgRugs = Number(calculateAverage((await holderRugVsApe).holders.map(r => r.rug_count ? r.rug_count : 0))).toFixed(2) + ' rugs'
         var avgTime = Number(calculateAverage((await holderWalletTime).holders.map(r => r.avg_time ? r.avg_time : 0))).toFixed(2) + ' hours'
         var avgAge = Number(calculateAverage((await holderWalletTime).holders.map(r => r.wallet_age ? r.wallet_age : 0))).toFixed(2) + ' days'
         var avgTx = Number(calculateAverage((await holderWalletTime).holders.map(r => r.tx_count ? r.tx_count : 0))).toFixed(2) + ' txns'
         var reply = 
-        `Results for ${token_address}
+        `Results for *${token_address}*
 
-Averages
-Holding: ${avgHolding}
-$$$ Value: ${avgValue}
-Rugs Aped: ${avgRugs}
-Time between TXN: ${avgTime}
-Age: ${avgAge}
-TXN Count: ${avgTx}
+*Averages*
+_Holding_: ${avgHolding}
+_$$$ Value_: ${avgValue}
+_Rugs Aped_: ${avgRugs}
+_Time between TXN_: ${avgTime}
+_Age_: ${avgAge}
+_TXN Count_: ${avgTx}
 
-Top 5 Common Rugs: ${(await holderRugVsApe).common_rugs.slice(0, 5).map(obj => obj.address).join(', ')}.
+*Top 5 Common Rugs*: ${(await holderRugVsApe).common_rugs.slice(0, 5).map(obj => obj.address).join(', ')}
 
-Top 5 Common Apes: ${(await holderRugVsApe).common_apes.slice(0, 5).map(obj => obj.address).join(', ')}.
+*Top 5 Common Apes*: ${(await holderRugVsApe).common_apes.slice(0, 5).map(obj => obj.address).join(', ')}
 
-Top 5 Common Funders: ${(await holderCommonFunders).common_funders.slice(0, 5).join(', ')}.
+*Top 5 Common Funders*: ${(await holderCommonFunders).common_funders.slice(0, 5).join(', ')}
 `
-        return reply
+        return reply.replace(/\./g, "\\.");
     } catch(e) {
         return e.message
     }

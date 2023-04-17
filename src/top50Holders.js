@@ -123,8 +123,8 @@ const handleGetLabels = async (holdings, retries, chain) => {
     const query = {
       sql: `
                 select
-                  l.address,
-                  l.address_name
+                  l.address as address,
+                  l.address_name as address_name
                 from
                   ${chain}.core.dim_labels l
                 where

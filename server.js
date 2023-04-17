@@ -24,9 +24,9 @@ bot.command('test', async (ctx) => {
         console.log('handling tg request')
         const message = ctx.message.text;
         const reply = await handleTest(message, 0)
-        ctx.reply(reply);
+        ctx.replyWithMarkdownV2(reply);
     } catch (e) {
-        ctx.reply('Request failed, try again later.')
+        ctx.replyWithMarkdownV2('Request failed, try again later.')
     }
 });
 
