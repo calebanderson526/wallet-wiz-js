@@ -18,6 +18,33 @@ function calculateAverage(numbers) {
     return sum / numbers.length;
 }
 
+function escapeMarkdown(input) {
+    // Define Markdown features to replace
+    const markdownFeatures = [
+      { regex: /(\*{1,2})/g, replace: "\\$1" }, // Replace asterisks
+      { regex: /(\~{1,2})/g, replace: "\\$1" }, // Replace tildes
+      { regex: /(\#{1,6})/g, replace: "\\$1" }, // Replace hash symbols
+      { regex: /(\-{3,})/g, replace: "\\$1" }, // Replace horizontal rules
+      { regex: /(\_{1,2})/g, replace: "\\$1" }, // Replace underscores
+      { regex: /(\|{1})/g, replace: "\\$1" },   // Replace pipes
+      { regex: /(\[{1})/g, replace: "\\$1" },   // Replace opening brackets
+      { regex: /(\]{1})/g, replace: "\\$1" },   // Replace closing brackets
+      { regex: /(\({1})/g, replace: "\\$1" },   // Replace opening parentheses
+      { regex: /(\){1})/g, replace: "\\$1" },   // Replace closing parentheses
+      { regex: /(\>{1})/g, replace: "\\$1" },   // Replace blockquotes
+      { regex: /(\`{1})/g, replace: "\\$1" }    // Replace backticks
+    ];
+    
+    // Loop through markdown features and replace them with a preceding backslash
+    for (const feature of markdownFeatures) {
+      input = input.replace(feature.regex, feature.replace);
+    }
+    
+    // Return the escaped input
+    return input;
+  }
+  
+
 /*
     handler for /test on the wallet wiz telegram bot
 */
@@ -61,7 +88,7 @@ _TXN Count_: ${avgTx}
 
 *Top 5 Common Funders*: ${(await holderCommonFunders).common_funders.slice(0, 5).join(', ')}
 `
-        return reply.replace(/\./g, "\\.");
+        return reply
     } catch (e) {
         return e.message
     }
@@ -86,7 +113,7 @@ const setupBot = (bot, chain) => {
             const [command, token_address, ...params] = message.split(' ')
             ctx.reply(`Request received for token address: ${token_address}. Wait a bit and you will receive the results`)
             const reply = await handleTest(token_address, chain)
-            ctx.replyWithMarkdownV2(reply);
+            ctx.replyWithMarkdownV2(escapeMarkdown(reply));
         } catch (e) {
             ctx.replyWithMarkdownV2('Request failed, try again later.')
         }
