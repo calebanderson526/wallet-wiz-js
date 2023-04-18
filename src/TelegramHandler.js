@@ -5,6 +5,7 @@ const { top50Holders } = require('./top50Holders')
 const { walletTimeStats } = require('./walletTimeStats')
 const { commonFunders } = require('./commonFunders')
 const { unixTimeToString } = require('./utils')
+const rateLimit = require('telegraf-ratelimit')
 
 /*
     Helper to calculate average of an array of numbers
@@ -70,6 +71,13 @@ _TXN Count_: ${avgTx}
 module.exports.handleTest = handleTest
 
 const setupBot = (bot, chain) => {
+    // Set limit to 1 message per 3 seconds
+    const limitConfig = {
+        window: 60000,
+        limit: 6,
+        onLimitExceeded: (ctx, next) => ctx.reply('Slow down! You are sending too many messages.')
+    }
+    bot.use(rateLimit(limitConfig))
     // Message handler to respond to text messages
     bot.command('test', async (ctx) => {
         try {
