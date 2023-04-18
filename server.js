@@ -7,7 +7,7 @@ const {handleTest} = require('./src/TelegramHandler')
 const {Telegraf} = require('telegraf')
 
 const app = express();
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN)
+//const testBot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN)
 
 app.use(cors())
 
@@ -19,19 +19,19 @@ app.get('/', async (req, res) => {
 app.use('/api/v1', wiz_router)
 
 // Message handler to respond to text messages
-bot.command('test', async (ctx) => {
-    try {
-        console.log('handling tg request')
-        const message = ctx.message.text;
-        const reply = await handleTest(message, 0)
-        ctx.replyWithMarkdownV2(reply);
-    } catch (e) {
-        ctx.replyWithMarkdownV2('Request failed, try again later.')
-    }
-});
+// testBot.command('test', async (ctx) => {
+//     try {
+//         console.log('handling tg request')
+//         const message = ctx.message.text;
+//         const reply = await handleTest(message, 0)
+//         ctx.replyWithMarkdownV2(reply);
+//     } catch (e) {
+//         ctx.replyWithMarkdownV2('Request failed, try again later.')
+//     }
+// });
 
-// Start the bot using the polling method
-bot.launch();
+// // Start the bot using the polling method
+// testBot.launch();
 
 // Start server
 app.listen(process.env.PORT ? process.env.PORT : 8081, () => {
