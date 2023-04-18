@@ -104,9 +104,6 @@ const check_chain = (req, res) => {
 exports.check_chain = check_chain
 
 async function updateOrAddTgUserMetrics(ctx) {
-  console.log(ctx)
-  console.log(ctx.from.id)
-  console.log(ctx.from.id.toString())
   const client = new DynamoDBClient({ region: "us-east-1" });
   const params = {
     TableName: "WalletWizTgUsers",
@@ -120,8 +117,8 @@ async function updateOrAddTgUserMetrics(ctx) {
     if (Item) {
       // user exists, update their lastscan and scandates
       const now = Math.floor(Date.now() / 1000);
-      const UpdateExpression = "SET lastscan = :now, scandates = list_append(scandates, :scandates), totalscans = totalscans + :one";
-      const ExpressionAttributeValues = marshall({ ":now": now, ":one": 1, ":scandates": [now] });
+      const UpdateExpression = "SET lastscan = :now, scandates = list_append(scandates, :scandates), totalscans = totalscans + :one, username = :username";
+      const ExpressionAttributeValues = marshall({ ":now": now, ":one": 1, ":scandates": [now], ":username": ctx.from.username });
       const updateParams = {
         ...params,
         UpdateExpression,
@@ -132,10 +129,11 @@ async function updateOrAddTgUserMetrics(ctx) {
       // user doesn't exist, add them to the table
       const now = Math.floor(Date.now() / 1000);
       const Item = {
-        userId: ctx.from.id,
+        userId: ctx.from.id.toString(),
         lastscan: now,
         scandates: [now],
         totalscans: 1,
+        username: ctx.from.username,
       };
       const putParams = {
         TableName: "WalletWizTgUsers",

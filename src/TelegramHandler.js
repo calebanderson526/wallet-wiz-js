@@ -125,7 +125,7 @@ const setupBot = (bot, chain) => {
             await updateOrAddTgUserMetrics(ctx)
             await updateOrAddTokenMetrics(token_address)
         } catch (e) {
-            ctx.replyWithMarkdownV2('Request failed, try again later.')
+            ctx.reply('Request failed, try again later.')
         }
     });
 
