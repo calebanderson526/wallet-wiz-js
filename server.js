@@ -7,7 +7,7 @@ const {setupBot} = require('./src/TelegramHandler')
 const {Telegraf} = require('telegraf')
 
 const app = express();
-//const testBot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN)
+const testBot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN)
 
 app.use(cors())
 
@@ -18,7 +18,7 @@ app.get('/', async (req, res) => {
 
 app.use('/api/v1', wiz_router)
 
-//setupBot(testBot, 'ethereum')
+setupBot(testBot, 'ethereum')
 
 // Start server
 app.listen(process.env.PORT ? process.env.PORT : 8081, () => {

@@ -21,18 +21,17 @@ function calculateAverage(numbers) {
 function escapeMarkdown(input) {
     // Define Markdown features to replace
     const markdownFeatures = [
-      { regex: /(\*{1,2})/g, replace: "\\$1" }, // Replace asterisks
       { regex: /(\~{1,2})/g, replace: "\\$1" }, // Replace tildes
       { regex: /(\#{1,6})/g, replace: "\\$1" }, // Replace hash symbols
       { regex: /(\-{3,})/g, replace: "\\$1" }, // Replace horizontal rules
-      { regex: /(\_{1,2})/g, replace: "\\$1" }, // Replace underscores
       { regex: /(\|{1})/g, replace: "\\$1" },   // Replace pipes
       { regex: /(\[{1})/g, replace: "\\$1" },   // Replace opening brackets
       { regex: /(\]{1})/g, replace: "\\$1" },   // Replace closing brackets
       { regex: /(\({1})/g, replace: "\\$1" },   // Replace opening parentheses
       { regex: /(\){1})/g, replace: "\\$1" },   // Replace closing parentheses
       { regex: /(\>{1})/g, replace: "\\$1" },   // Replace blockquotes
-      { regex: /(\`{1})/g, replace: "\\$1" }    // Replace backticks
+      { regex: /(\`{1})/g, replace: "\\$1" },   // Replace backticks
+      { regex: /(\.{1})/g, replace: "\\$1" }    // replace .
     ];
     
     // Loop through markdown features and replace them with a preceding backslash
