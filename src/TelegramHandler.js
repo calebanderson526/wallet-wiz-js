@@ -21,10 +21,9 @@ function calculateAverage(numbers) {
 /*
     handler for /test on the wallet wiz telegram bot
 */
-async function handleTest(message, chain) {
+async function handleTest(token_address, chain) {
     try {
         const ethereumAddressRegex = /^0x[a-fA-F0-9]{40}$/;
-        const [command, token_address, ...params] = message.split(' ')
         const isAddress = ethereumAddressRegex.test(token_address)
         if (!isAddress) {
             return 'Ethereum address is Invalid'
@@ -78,12 +77,15 @@ const setupBot = (bot, chain) => {
         onLimitExceeded: (ctx, next) => ctx.reply('Slow down! You are sending too many messages.')
     }
     bot.use(rateLimit(limitConfig))
+
     // Message handler to respond to text messages
     bot.command('test', async (ctx) => {
         try {
             console.log('handling tg request')
             const message = ctx.message.text;
-            const reply = await handleTest(message, chain)
+            const [command, token_address, ...params] = message.split(' ')
+            ctx.reply(`Request received for token address: ${token_address}. Wait a bit and you will receive the results`)
+            const reply = await handleTest(token_address, chain)
             ctx.replyWithMarkdownV2(reply);
         } catch (e) {
             ctx.replyWithMarkdownV2('Request failed, try again later.')
@@ -99,7 +101,6 @@ const setupBot = (bot, chain) => {
     })
 
     bot.on('text', (ctx) => {
-        ctx.reply('reply1')
         ctx.reply('Unrecognized command. try /test {token address}')
     })
 
