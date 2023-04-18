@@ -1,10 +1,10 @@
-const {contractNames} = require('./contractNames')
-const {walletValues} = require('./walletValues')
-const {rugVsApe} = require('./rugVsApe')
-const {top50Holders} = require('./top50Holders')
-const {walletTimeStats} = require('./walletTimeStats')
-const {commonFunders} = require('./commonFunders')
-const {unixTimeToString} = require('./utils')
+const { contractNames } = require('./contractNames')
+const { walletValues } = require('./walletValues')
+const { rugVsApe } = require('./rugVsApe')
+const { top50Holders } = require('./top50Holders')
+const { walletTimeStats } = require('./walletTimeStats')
+const { commonFunders } = require('./commonFunders')
+const { unixTimeToString } = require('./utils')
 
 /*
     Helper to calculate average of an array of numbers
@@ -20,7 +20,7 @@ function calculateAverage(numbers) {
 /*
     handler for /test on the wallet wiz telegram bot
 */
-async function handleTest(message, retries) {
+async function handleTest(message, chain) {
     try {
         const ethereumAddressRegex = /^0x[a-fA-F0-9]{40}$/;
         const [command, token_address, ...params] = message.split(' ')
@@ -30,22 +30,22 @@ async function handleTest(message, retries) {
         }
 
         // Run all wallet wiz tests
-        const holders = await top50Holders(token_address, 'earliest', 'latest', 0, 'ethereum')
-        const holdersNames = await contractNames(holders.holders, 0, 'ethereum')
-        const holderBalances = walletValues(holdersNames.holders, 0, 'ethereum')
-        const holderRugVsApe = rugVsApe(holdersNames.holders, 0, 'ethereum')
-        const holderWalletTime = walletTimeStats(holdersNames.holders, 0, 'ethereum')
-        const holderCommonFunders = commonFunders(holdersNames.holders, 0, 'ethereum', unixTimeToString((new Date).getTime()))
-        
+        const holders = await top50Holders(token_address, 'earliest', 'latest', 0, chain)
+        const holdersNames = await contractNames(holders.holders, 0, chain)
+        const holderBalances = walletValues(holdersNames.holders, 0, chain)
+        const holderRugVsApe = rugVsApe(holdersNames.holders, 0, chain)
+        const holderWalletTime = walletTimeStats(holdersNames.holders, 0, chain)
+        const holderCommonFunders = commonFunders(holdersNames.holders, 0, chain, unixTimeToString((new Date).getTime()))
+
         // Calculate Averages
         var avgHolding = Number(calculateAverage((holders.holders).map(r => r.holding)) * 100).toFixed(3) + ' %'
-        var avgValue = '$' + Number(calculateAverage((await holderBalances).holders.map(r => r.wallet_value && !r.address_name && r.address != '0x000000000000000000000000000000000000dead'  ? r.wallet_value : 0))).toFixed(2)
+        var avgValue = '$' + Number(calculateAverage((await holderBalances).holders.map(r => r.wallet_value && !r.address_name && r.address != '0x000000000000000000000000000000000000dead' ? r.wallet_value : 0))).toFixed(2)
         var avgRugs = Number(calculateAverage((await holderRugVsApe).holders.map(r => r.rug_count ? r.rug_count : 0))).toFixed(2) + ' rugs'
         var avgTime = Number(calculateAverage((await holderWalletTime).holders.map(r => r.avg_time ? r.avg_time : 0))).toFixed(2) + ' hours'
         var avgAge = Number(calculateAverage((await holderWalletTime).holders.map(r => r.wallet_age ? r.wallet_age : 0))).toFixed(2) + ' days'
         var avgTx = Number(calculateAverage((await holderWalletTime).holders.map(r => r.tx_count ? r.tx_count : 0))).toFixed(2) + ' txns'
-        var reply = 
-        `Results for *${token_address}*
+        var reply =
+            `Results for *${token_address}*
 
 *Averages*
 _Holding_: ${avgHolding}
@@ -62,9 +62,40 @@ _TXN Count_: ${avgTx}
 *Top 5 Common Funders*: ${(await holderCommonFunders).common_funders.slice(0, 5).join(', ')}
 `
         return reply.replace(/\./g, "\\.");
-    } catch(e) {
+    } catch (e) {
         return e.message
     }
 }
 
 module.exports.handleTest = handleTest
+
+const setupBot = (bot, chain) => {
+    // Message handler to respond to text messages
+    bot.command('test', async (ctx) => {
+        try {
+            console.log('handling tg request')
+            const message = ctx.message.text;
+            const reply = await handleTest(message, chain)
+            ctx.replyWithMarkdownV2(reply);
+        } catch (e) {
+            ctx.replyWithMarkdownV2('Request failed, try again later.')
+        }
+    });
+
+    bot.start((ctx) => {
+        ctx.reply('Welcome to the wallet wiz bot try /test {token address} to test a token.')
+    })
+
+    bot.command((ctx) => {
+        ctx.reply('Unrecognized command. try /test {token address}')
+    })
+
+    bot.on('text', (ctx) => {
+        ctx.reply('Unrecognized command. try /test {token address}')
+    })
+
+    // Start the bot using the polling method
+    bot.launch();
+}
+
+module.exports.setupBot = setupBot
