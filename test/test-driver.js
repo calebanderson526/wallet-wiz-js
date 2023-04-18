@@ -1,16 +1,9 @@
-const { 
-    create_request_log, 
-    get_holders, 
-    get_holder_rug_vs_ape, 
-    get_contract_names, 
-    get_early_alpha,
-    get_common_funders
-} = require("../WalletWiz")
 const token_address = '0xBBEa044f9e7c0520195e49Ad1e561572E7E1B948'
 
 const {top50Holders} = require('../src/top50Holders')
 const { contractNames } = require('../src/contractNames')
 const { walletValues } = require('../src/walletValues')
+const { updateOrAddTgUserMetrics, updateOrAddTokenMetrics } = require('../src/middleware')
 
 async function run() {
     const start = new Date();
@@ -28,13 +21,15 @@ async function run() {
 //     // console.log(JSON.stringify(result2, undefined, 2))
 //     console.log(`${new Date() - start} ms runtime`)
 //     // create_request_log('GET', '/api/user', 500, 200);
-    console.log('holders')
-    var result = await top50Holders('0x0fE0Ed7F146Cb12e4B9759afF4FA8d34571802ca', 'earliest', 'latest', 0, 'ethereum')
-    console.log((new Date()).getTime()- start.getTime())
-    console.log('contracts')
-    var result2 = await walletValues(result.holders, 0, 'ethereum', 'latest')
-    console.log((new Date()).getTime()- start.getTime())
-    console.log(result2)
+    // console.log('holders')
+    // var result = await top50Holders('0x0fE0Ed7F146Cb12e4B9759afF4FA8d34571802ca', 'earliest', 'latest', 0, 'ethereum')
+    // console.log((new Date()).getTime()- start.getTime())
+    // console.log('contracts')
+    // var result2 = await walletValues(result.holders, 0, 'ethereum', 'latest')
+    // console.log((new Date()).getTime()- start.getTime())
+    // console.log(result2)
+    //await updateOrAddTgUserMetrics({from: {id: 'developementtest'}})
+    await updateOrAddTokenMetrics('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')
 }
 
 run()

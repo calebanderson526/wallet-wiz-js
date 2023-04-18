@@ -5,6 +5,7 @@ const { top50Holders } = require('./top50Holders')
 const { walletTimeStats } = require('./walletTimeStats')
 const { commonFunders } = require('./commonFunders')
 const { unixTimeToString } = require('./utils')
+const { merge_holders, updateOrAddTgUserMetrics, updateOrAddTokenMetrics } = require('./middleware')
 const rateLimit = require('telegraf-ratelimit')
 
 /*
@@ -86,10 +87,17 @@ _TXN Count_: ${avgTx}
 *Top 5 Common Apes*: ${(await holderRugVsApe).common_apes.slice(0, 5).map(obj => obj.address).join(', ')}
 
 *Top 5 Common Funders*: ${(await holderCommonFunders).common_funders.slice(0, 5).join(', ')}
-`
-        return reply
+`       
+        // this will be implemented once we are tracking results for tokens in the db
+        // var finalHolders = merge_holders(holders, holdersNames)
+        // finalHolders = merge_holders(finalHolders, holderBalances)
+        // finalHolders = merge_holders(finalHolders, holderRugVsApe)
+        // finalHolders = merge_holders(finalHolders, holderWalletTime)
+        // finalHolders = merge_holders(finalHolders, holderCommonFunders)
+
+        return {reply: reply}
     } catch (e) {
-        return e.message
+        return {reply: e.message}
     }
 }
 
@@ -112,7 +120,10 @@ const setupBot = (bot, chain) => {
             const [command, token_address, ...params] = message.split(' ')
             ctx.reply(`Request received for token address: ${token_address}. Wait a bit and you will receive the results`)
             const reply = await handleTest(token_address, chain)
-            ctx.replyWithMarkdownV2(escapeMarkdown(reply));
+            ctx.replyWithMarkdownV2(escapeMarkdown(reply.reply));
+
+            await updateOrAddTgUserMetrics(ctx)
+            await updateOrAddTokenMetrics(token_address)
         } catch (e) {
             ctx.replyWithMarkdownV2('Request failed, try again later.')
         }
