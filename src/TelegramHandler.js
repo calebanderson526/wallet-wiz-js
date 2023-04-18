@@ -99,6 +99,7 @@ const setupBot = (bot, chain) => {
     })
 
     bot.on('text', (ctx) => {
+        ctx.reply('reply1')
         ctx.reply('Unrecognized command. try /test {token address}')
     })
 
