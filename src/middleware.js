@@ -104,10 +104,13 @@ const check_chain = (req, res) => {
 exports.check_chain = check_chain
 
 async function updateOrAddTgUserMetrics(ctx) {
+  console.log(ctx)
+  console.log(ctx.from.id)
+  console.log(ctx.from.id.toString())
   const client = new DynamoDBClient({ region: "us-east-1" });
   const params = {
     TableName: "WalletWizTgUsers",
-    Key: marshall({ userId: ctx.from.id }),
+    Key: marshall({ userId: ctx.from.id.toString() }),
   };
 
   try {
