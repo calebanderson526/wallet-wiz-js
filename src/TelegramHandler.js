@@ -55,6 +55,8 @@ async function handleTest(token_address, chain) {
         if (!isAddress) {
             return 'Ethereum address is Invalid'
         }
+        var block_exp_url = process.env[`${chain.toUpperCase()}_EXP_URL`] + `/address/${token_address}`
+        var dexsc_url = `https://dexscreener.com/${chain}/${token_address}`
 
         // Run all wallet wiz tests
         const holders = await top50Holders(token_address, 'earliest', 'latest', 0, chain)
@@ -62,31 +64,29 @@ async function handleTest(token_address, chain) {
         const holderBalances = walletValues(holdersNames.holders, 0, chain)
         const holderRugVsApe = rugVsApe(holdersNames.holders, 0, chain)
         const holderWalletTime = walletTimeStats(holdersNames.holders, 0, chain)
-        const holderCommonFunders = commonFunders(holdersNames.holders, 0, chain, unixTimeToString((new Date).getTime()))
 
         // Calculate Averages
-        var avgHolding = Number(calculateAverage((holders.holders).map(r => r.holding)) * 100).toFixed(3) + ' %'
         var avgValue = '$' + Number(calculateAverage((await holderBalances).holders.map(r => r.wallet_value && !r.address_name && r.address != '0x000000000000000000000000000000000000dead' ? r.wallet_value : 0))).toFixed(2)
-        var avgRugs = Number(calculateAverage((await holderRugVsApe).holders.map(r => r.rug_count ? r.rug_count : 0))).toFixed(2) + ' rugs'
+        var avgRugs = Number(calculateAverage((await holderRugVsApe).holders.map(r => r.rug_count ? r.rug_count / r.ape_count : 0))).toFixed(2) + ' rugs'
         var avgTime = Number(calculateAverage((await holderWalletTime).holders.map(r => r.avg_time ? r.avg_time : 0))).toFixed(2) + ' hours'
         var avgAge = Number(calculateAverage((await holderWalletTime).holders.map(r => r.wallet_age ? r.wallet_age : 0))).toFixed(2) + ' days'
         var avgTx = Number(calculateAverage((await holderWalletTime).holders.map(r => r.tx_count ? r.tx_count : 0))).toFixed(2) + ' txns'
         var reply =
-            `Results for *${token_address}*
+`Results for <strong>${token_address}</strong>
 
-*Averages*
-_Holding_: ${avgHolding}
-_$$$ Value_: ${avgValue}
-_Rugs Aped_: ${avgRugs}
-_Time between TXN_: ${avgTime}
-_Age_: ${avgAge}
-_TXN Count_: ${avgTx}
+Top 50 Wallets:
+💰<i>Avg<b> Wallet Value</b></i>: ${avgValue}
+🔫<i>Avg<b> Rug/Ape Ratio</b></i>: ${avgRugs}
+⏰<i>Avg<b> Time Between TX</b></i>: ${avgTime}
+⏳<i>Avg<b> Wallet Age</b></i>: ${avgAge}
+⚡<i>Avg<b> TX Count</b></i>: ${avgTx}
 
-*Top 5 Common Rugs*: ${(await holderRugVsApe).common_rugs.slice(0, 5).map(obj => obj.address).join(', ')}
+🍯<b>Top 5 Common Rugs</b> Wallets Bought: ${(await holderRugVsApe).common_rugs.slice(0, 5).map(obj => `$${obj.name}`).join(', ')}
+            
+📈<b>Top 5 Common Apes</b> Wallets Bought: ${(await holderRugVsApe).common_apes.slice(0, 5).map(obj => `$${obj.name}`).join(', ')}
 
-*Top 5 Common Apes*: ${(await holderRugVsApe).common_apes.slice(0, 5).map(obj => obj.address).join(', ')}
-
-*Top 5 Common Funders*: ${(await holderCommonFunders).common_funders.slice(0, 5).join(', ')}
+🔎Get more detailed list on our Dapp (<a href="http://walletwizcrypto.com">Wallet Wiz</a>)
+Chart (<a href="${dexsc_url}">Dexscreener</a> | Contract (<a href="${block_exp_url}">Block Explorer</a>) | Wiz Community ( this link: https://t.me/WalletWiz)
 `       
         // this will be implemented once we are tracking results for tokens in the db
         // var finalHolders = merge_holders(holders, holdersNames)
@@ -120,7 +120,7 @@ const setupBot = (bot, chain) => {
             const [command, token_address, ...params] = message.split(' ')
             ctx.reply(`Request received for token address: ${token_address}. Wait a bit and you will receive the results`)
             const reply = await handleTest(token_address, chain)
-            ctx.replyWithMarkdownV2(escapeMarkdown(reply.reply));
+            ctx.replyWithHTML(reply.reply);
 
             await updateOrAddTgUserMetrics(ctx)
             await updateOrAddTokenMetrics(token_address)
