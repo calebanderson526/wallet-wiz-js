@@ -146,7 +146,6 @@ const rugVsApe = async (holders, retries, chain) => {
         contract_address,
         d.name
       `
-      console.log(sql)
 
     const query = {
       sql: sql,

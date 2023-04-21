@@ -7,9 +7,9 @@ const {setupBot} = require('./src/TelegramHandler')
 const {Telegraf} = require('telegraf')
 
 const app = express();
-// const testBot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN)
-const arbBot = new Telegraf(process.env.ARB_TELEGRAM_BOT_TOKEN)
-const ethBot = new Telegraf(process.env.ETH_TELEGRAM_BOT_TOKEN)
+// const testBot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN, {handlerTimeout: 120_000})
+const arbBot = new Telegraf(process.env.ARB_TELEGRAM_BOT_TOKEN, {handlerTimeout: 120_000})
+const ethBot = new Telegraf(process.env.ETH_TELEGRAM_BOT_TOKEN, {handlerTimeout: 120_000})
 
 app.use(cors())
 

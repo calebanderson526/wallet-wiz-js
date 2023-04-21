@@ -3,9 +3,7 @@ const { walletValues } = require('./walletValues')
 const { rugVsApe } = require('./rugVsApe')
 const { top50Holders } = require('./top50Holders')
 const { walletTimeStats } = require('./walletTimeStats')
-const { commonFunders } = require('./commonFunders')
-const { unixTimeToString } = require('./utils')
-const { merge_holders, updateOrAddTgUserMetrics, updateOrAddTokenMetrics } = require('./middleware')
+const { updateOrAddTgUserMetrics, updateOrAddTokenMetrics } = require('./middleware')
 const rateLimit = require('telegraf-ratelimit')
 
 /*
@@ -71,6 +69,8 @@ async function handleTest(token_address, chain) {
         var avgTime = Number(calculateAverage((await holderWalletTime).holders.map(r => r.avg_time ? r.avg_time : 0))).toFixed(2) + ' hours'
         var avgAge = Number(calculateAverage((await holderWalletTime).holders.map(r => r.wallet_age ? r.wallet_age : 0))).toFixed(2) + ' days'
         var avgTx = Number(calculateAverage((await holderWalletTime).holders.map(r => r.tx_count ? r.tx_count : 0))).toFixed(2) + ' txns'
+        var freshWallets = (await holderWalletTime).holders.reduce((accumulator, holder) => accumulator + (holder.tx_count > 5 ? 0 : 1), 0)
+
         var reply =
 `Results for <strong>${token_address}</strong>
 
@@ -80,6 +80,8 @@ Top 50 Wallets:
 ⏰<i>Avg<b> Time Between TX</b></i>: ${avgTime}
 ⏳<i>Avg<b> Wallet Age</b></i>: ${avgAge}
 ⚡<i>Avg<b> TX Count</b></i>: ${avgTx}
+
+🆕<b>Fresh Wallets</b>: ${freshWallets}
 
 🍯<b>Top 5 Common Rugs</b> Wallets Bought: ${(await holderRugVsApe).common_rugs.slice(0, 5).map(obj => `$${obj.name}`).join(', ')}
             
